@@ -1,0 +1,9 @@
+**
+!src/
+!src/*.cpp
+!include/
+!include/*.h
+!CMakeLists.txt
+!.gitignore
+!.vscode/
+!.vscode/*

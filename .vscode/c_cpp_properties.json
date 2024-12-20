@@ -1,0 +1,31 @@
+{
+  "configurations": [
+    {
+      // 影响代码导航和符号搜索，它并不直接影响补全和 IntelliSense 功能。
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": true,
+        "path": [
+          // "${workspaceFolder}/src",
+          // "${workspaceFolder}/include",
+          // "/usr/include"
+        ]
+      },
+      
+      "includePath": [
+          "&{default}",
+          "${workspaceFolder}/include",
+          "/usr/include/eigen3",
+          "/usr/include/pcl-1.10"
+      ],
+      "name": "ROS",
+      // "intelliSenseMode": "gcc-x64",
+      "intelliSenseMode": "linux-gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++17"
+      
+    }
+  ],
+  "version": 4
+}

@@ -1,0 +1,55 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+      {
+          "label": "CMake Configure",        // 配置任务标签
+          "type": "shell",                  // 使用 shell 命令
+          "command": "cmake",               // 执行 CMake 配置命令
+          "args": [
+              "-S", "${workspaceFolder}",   // 源码路径
+              "-B", "${workspaceFolder}/build", // 构建目录
+              "-DCMAKE_BUILD_TYPE=Debug"   // 配置参数
+          ],
+          "group": {
+              "kind": "build",
+              "isDefault": true            // 设置为默认任务
+          },
+          "problemMatcher": []             // 可选问题匹配器（针对错误输出）
+      },
+      {
+          "label": "CMake Build",           // 构建任务标签
+          "type": "shell",
+          "command": "cmake",
+          "args": [
+              "--build", "${workspaceFolder}/build", // 构建目录
+              "--target", "all",           // 构建目标，默认是 all
+              "--config", "Debug"          // 构建配置
+          ],
+          "group": {
+              "kind": "build",
+              "isDefault": false           // 不是默认任务
+          },
+          "problemMatcher": [],
+          "dependsOn": ["CMake Configure"]
+      },
+      {
+        "label": "Run Program",              // 任务名称
+        "type": "process",                    // 执行 shell 命令
+        "command": "${workspaceFolder}/bin/Autograd", // 可执行文件路径
+        "args": [                           // 程序运行参数（可选）
+        ],
+        "group": {
+            "kind": "test",                 // 归类为测试任务
+            "isDefault": true               // 可设置为默认任务
+        },
+        "presentation": {                   // 终端显示选项
+            "reveal": "always",             // 始终显示终端
+            "panel": "shared"              // 共享终端面板
+        },
+        "problemMatcher": [],                // 不匹配问题（无需分析输出）
+        "dependsOn": ["CMake Build"]
+      },
+     
+  ]
+}
+
