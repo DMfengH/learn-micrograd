@@ -34,9 +34,10 @@
       },
       {
         "label": "Run Program",              // 任务名称
-        "type": "process",                    // 执行 shell 命令
+        "type": "shell",                    // 执行 shell 命令
         "command": "${workspaceFolder}/bin/Autograd", // 可执行文件路径
-        "args": [                           // 程序运行参数（可选）
+        "args": [
+            "-g",                                   // 程序运行参数（可选）
         ],
         "group": {
             "kind": "test",                 // 归类为测试任务
@@ -44,9 +45,10 @@
         },
         "presentation": {                   // 终端显示选项
             "reveal": "always",             // 始终显示终端
-            "panel": "shared"              // 共享终端面板
+            "panel": "dedicated",              // 共享终端面板 
+            "echo": true
         },
-        "problemMatcher": [],                // 不匹配问题（无需分析输出）
+        "problemMatcher": ["$gcc"],                // 不匹配问题（无需分析输出）
         "dependsOn": ["CMake Build"]
       },
      

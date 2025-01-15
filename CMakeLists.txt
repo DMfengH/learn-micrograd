@@ -6,6 +6,7 @@ project(myCodeToNewStart VERSION 0.1.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_PREFIX_PATH "/usr/local/gtest")
+set(CMAKE_BUILD_TYPE Debug)
 # 保存中间文件，可能会出现问题，因为保存中间文件时，编译会有一些不同
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -save-temps")
 
