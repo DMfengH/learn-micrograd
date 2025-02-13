@@ -1,7 +1,7 @@
 #pragma once
-#include "utilities.h"
-#include "autoGrad.h"
-#include "visualizeTool.h"
+#include "utils.h"
+#include "micrograd.h"
+#include "visualize_tool.h"
 
 #include <graphviz/cgraph.h>
 #include <graphviz/gvc.h>
