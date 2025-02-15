@@ -4,38 +4,58 @@
 #include <sstream>
 #include <set>
 #include <functional>
+#include <cmath>
 
 // 这个类如何在不使用shared_ptr的情况下实现operator+的闭包效果呢？？？？
-class Node;
-using NodePtr = std::shared_ptr<Node>;
+class Value;
+using ValuePtr = std::shared_ptr<Value>;
 
-class Node{
+class Value{
 public:
-  Node(float a_val): val(a_val), id(maxID++){}
+  Value():id(maxID++){
+    std::cout << "cond";
+  }
+  Value(double a_val): val(a_val), id(maxID++){}
 
-  ~Node() {
+  ~Value() {
         // std::cout << "Node destructed: " << std::endl;
     }
 
-  friend NodePtr operator+(NodePtr lhs, NodePtr rhs);
-  friend NodePtr operator*(NodePtr lhs, NodePtr rhs);
-  friend NodePtr operator+(NodePtr lhs, float num);
+  // karpathy的python实现中，把backward作为一个成员【和pytorch的API是一致的】，
+  // 这个版本把backward单独作为一个全局函数，所以就不实现这个backward成员函数。
+  // void backward(); 
+  friend ValuePtr operator+(ValuePtr lhs, ValuePtr rhs);
+  friend ValuePtr operator*(ValuePtr lhs, ValuePtr rhs);
+  friend ValuePtr operator+(ValuePtr lhs, double num);
+  friend ValuePtr operator*(ValuePtr lhs, double num);
+
+  friend ValuePtr operator-(ValuePtr lhs, ValuePtr rhs); 
+  friend ValuePtr operator/(ValuePtr lhs, ValuePtr rhs);
+  
+  friend ValuePtr operator-(ValuePtr vp);
+  friend ValuePtr inv(ValuePtr vp);
+  friend ValuePtr tanh(ValuePtr vp);
+  friend ValuePtr exp(ValuePtr vp); 
+  friend ValuePtr pow(ValuePtr lhs, double num);
+  friend ValuePtr pow(ValuePtr lhs, ValuePtr rhs);
+
 
   std::string toString(){
     std::stringstream ss;
-    ss << "Value(data=" << this->val << ", grad=" << this->derivative << ")";
+    // ss << "Value(data=" << this->val << ", grad=" << this->derivative << ")";
+    ss << "data=" << this->val << " | grad=" << this->derivative;
     return ss.str();
   }
   
 private:
-  static int maxID;
+  static int maxID; // 当创建的Value很多的时候，这个ID可能超过最大值
 
 public:
   int id = 0;
-  float val = 0;
-  float derivative = 0;
+  double val = 0;
+  double derivative = 0;
   std::string op = "";
-  std::set<NodePtr> prev_;
+  std::set<ValuePtr> prev_;
   std::function<void()> backward_ = nullptr;
   
 };

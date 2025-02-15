@@ -11,7 +11,7 @@
 #include <functional>
 
 
-void topoSort(NodePtr root, std::vector<NodePtr>& topo);
+void topoSort(ValuePtr root, std::vector<ValuePtr>& topo);
 
-void backward(NodePtr root);
+void backward(ValuePtr root);
 

@@ -3,9 +3,9 @@
 using Logger::info;
 using Logger::warn;
 
-static std::vector<NodePtr> alreadyVisited;
+static std::vector<ValuePtr> alreadyVisited;
 
-Agnode_t* drawDataNode(NodePtr nodePtr, Agraph_t* g){
+Agnode_t* drawDataNode(ValuePtr nodePtr, Agraph_t* g){
   std::string temp = std::to_string(nodePtr->id);
   char name[temp.size()+1];
   strcpy(name, temp.c_str());
@@ -20,7 +20,7 @@ Agnode_t* drawDataNode(NodePtr nodePtr, Agraph_t* g){
   return node;
 }
 
-Agnode_t* drawOpNode(NodePtr nodePtr, Agraph_t* g){
+Agnode_t* drawOpNode(ValuePtr nodePtr, Agraph_t* g){
   std::string tempStr;
   std::stringstream ss;
   ss << nodePtr->op;
@@ -38,7 +38,7 @@ Agnode_t* drawOpNode(NodePtr nodePtr, Agraph_t* g){
   return node;
 }
 
-void draw(NodePtr curNode, Agnode_t* curAgnode, Agraph_t* g){
+void drawAllNodesEdgesRecursive(ValuePtr curNode, Agnode_t* curAgnode, Agraph_t* g){
   if (std::find(alreadyVisited.begin(), alreadyVisited.end(), curNode) != alreadyVisited.end()){
     return;
   }
@@ -48,15 +48,15 @@ void draw(NodePtr curNode, Agnode_t* curAgnode, Agraph_t* g){
   Agnode_t* opNode = drawOpNode(curNode, g);
   agedge(g, opNode, curAgnode, NULL, TRUE);
   alreadyVisited.push_back(curNode);
-  for(NodePtr n:curNode->prev_){
+  for(ValuePtr n:curNode->prev_){
     Agnode_t* NodeN = drawDataNode(n, g);
     agedge(g, NodeN, opNode, NULL, TRUE);
-    draw(n, NodeN, g);
+    drawAllNodesEdgesRecursive(n, NodeN, g);
   }
 }
 
-void drawALLNodesEdges(std::vector<NodePtr> allNodes, std::vector<std::pair<NodePtr,NodePtr>> allEdges, Agraph_t* g){
-  for (NodePtr node: allNodes){
+void drawALLNodesEdges(std::vector<ValuePtr> allNodes, std::vector<std::pair<ValuePtr,ValuePtr>> allEdges, Agraph_t* g){
+  for (ValuePtr node: allNodes){
     drawDataNode(node,g);
     if (!node->op.empty()){
       drawOpNode(node,g);
@@ -99,18 +99,18 @@ void drawALLNodesEdges(std::vector<NodePtr> allNodes, std::vector<std::pair<Node
   }
 }
 
-void getAllNodesEdges(NodePtr result, 
-                      std::vector<NodePtr> &allNodes, 
-                      std::vector<std::pair<NodePtr, NodePtr>> &allEdges){
-  std::vector<NodePtr> readyNodes;
+void getAllNodesEdges(ValuePtr result, 
+                      std::vector<ValuePtr> &allNodes, 
+                      std::vector<std::pair<ValuePtr, ValuePtr>> &allEdges){
+  std::vector<ValuePtr> readyNodes;
   readyNodes.push_back(result);
   while( !readyNodes.empty()){
-    NodePtr cur = readyNodes[0];
+    ValuePtr cur = readyNodes[0];
     readyNodes.erase(readyNodes.begin());
 
     if(std::find(allNodes.begin(), allNodes.end(), cur) == allNodes.end()){
       allNodes.push_back(cur);
-      for(NodePtr node: cur->prev_){
+      for(ValuePtr node: cur->prev_){
         allEdges.push_back({node, cur});
 
         if(std::find(readyNodes.begin(), readyNodes.end(), node) == readyNodes.end()){
@@ -121,18 +121,18 @@ void getAllNodesEdges(NodePtr result,
   }
 }
 
-void drawGraph(NodePtr result, char* name, GVC_t* gvc){
+void drawGraph(ValuePtr result, char* name, GVC_t* gvc){
   Agraph_t* graph = agopen(name, Agdirected, NULL);
   agsafeset(graph, "rankdir", "LR", "");   
 
   //上面是递归的方式绘制，下面是获得所有Nodes和edges一起绘制
   if(false){
     Agnode_t* resAgnode = drawDataNode(result, graph);
-    draw(result, resAgnode, graph);
+    drawAllNodesEdgesRecursive(result, resAgnode, graph);
     alreadyVisited.clear();
   }else{
-    std::vector<NodePtr> allNodes;
-    std::vector<std::pair<NodePtr, NodePtr>> allEdges;
+    std::vector<ValuePtr> allNodes;
+    std::vector<std::pair<ValuePtr, ValuePtr>> allEdges;
     getAllNodesEdges(result, allNodes, allEdges);
     drawALLNodesEdges(allNodes, allEdges, graph);
   }

@@ -6,10 +6,10 @@
 #include <graphviz/cgraph.h>
 #include <graphviz/gvc.h>
 
-Agnode_t* drawDataNode(NodePtr nodePtr, Agraph_t* g);
+Agnode_t* drawDataNode(ValuePtr nodePtr, Agraph_t* g);
 
-Agnode_t* drawOpNode(NodePtr nodePtr, Agraph_t* g);
+Agnode_t* drawOpNode(ValuePtr nodePtr, Agraph_t* g);
 
-void draw(NodePtr curNode, Agnode_t* curAgnode, Agraph_t* g);
+void drawAllNodesEdgesRecursive(ValuePtr curNode, Agnode_t* curAgnode, Agraph_t* g);
 
-void drawGraph(NodePtr result, char* name, GVC_t* gvc);
+void drawGraph(ValuePtr result, char* name, GVC_t* gvc);

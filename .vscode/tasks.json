@@ -35,10 +35,13 @@
       {
         "label": "Run Program",              // 任务名称
         "type": "shell",                    // 执行 shell 命令
-        "command": "${workspaceFolder}/bin/Autograd", // 可执行文件路径
+        "command": "${workspaceFolder}/bin/micrograd", // 可执行文件路径
         "args": [
             "-g",                                   // 程序运行参数（可选）
         ],
+        "options": {
+            "cwd": "${workspaceFolder}/bin/",       // 修改执行命令的工作目录
+        },
         "group": {
             "kind": "test",                 // 归类为测试任务
             "isDefault": true               // 可设置为默认任务

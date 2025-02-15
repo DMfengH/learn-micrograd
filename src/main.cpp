@@ -1,8 +1,9 @@
 #include "test_ground.h"
 
 int main(){
-  testAutoGrad();
+  // testAutoGrad();
+  // testPlot();
+  testNN();
 
-
-  info("The program is end at there");
+  info("---------------------------  The program is end at there  ---------------------------");
 }

@@ -27,24 +27,31 @@ find_package(Eigen3 REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(GLUT REQUIRED)
 find_package(SFML 2.5 COMPONENTS graphics window system REQUIRED)
-
+find_package(glfw3 REQUIRED)  # 查找 GLFW3 库
 find_package(PkgConfig REQUIRED)  # 查找 pkg-config
 # 用pkg-config添加GRAPHVIZ
 pkg_check_modules(GRAPHVIZ REQUIRED libgvc libcgraph)  # 查找 Graphviz 的库
 
+# file(GLOB imgui_src "imgui/*.cpp")
+# add_library(imgui STATIC
+#             ${imgui_src}
+# ) 
 
 set(Eigen3_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIR})
 message("eigen include path: ${EIGEN3_INCLUDE_DIR}")
-include_directories(${GTEST_INCLUDE_DIRS} "${CMAKE_CURRENT_SOURCE_DIR}/include")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/imgui")
+include_directories(${GTEST_INCLUDE_DIRS})
 include_directories(${TCL_INCLUDE_PATH})
 include_directories(${Eigen3_INCLUDE_DIRS})
 include_directories(${GRAPHVIZ_INCLUDE_DIRS})
 
+
+
 file(GLOB SOURCE "src/*.cpp")
-add_executable(Autograd ${SOURCE})
-target_link_libraries(Autograd ${GRAPHVIZ_LIBRARIES})
-message(${TCL_INCLUDE_PATH})
-message(${TCL_LIBRARY})
+add_executable(micrograd ${SOURCE})
+target_link_libraries(micrograd ${GRAPHVIZ_LIBRARIES})
+
 
 
 message("-------------------------end-----------------")

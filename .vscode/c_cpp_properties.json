@@ -15,6 +15,7 @@
       "includePath": [
           "&{default}",
           "${workspaceFolder}/include",
+          "${workspaceFolder}/imgui",
           "/usr/include/eigen3",
           "/usr/include/pcl-1.10"
       ],
