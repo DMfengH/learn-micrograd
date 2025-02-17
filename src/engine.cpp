@@ -44,20 +44,19 @@ ValuePtr operator*(ValuePtr lhs, double num){
 }
 
 ValuePtr tanh(ValuePtr vp){
-  // double num = (pow(M_E, 2*vp->val) -1) / (pow(M_E, 2*vp->val) +1);
-  // ValuePtr out = std::make_shared<Value>(num);
-  // out->op = "tanh";
-  // out->prev_.insert(vp);
-  // out->backward_ = [vp, out](){
-  //     vp->derivative += (1-pow(out->val,2)) * out->derivative;
-  //   };
+  double num = (pow(M_E, 2*vp->val) -1) / (pow(M_E, 2*vp->val) +1);
+  ValuePtr out = std::make_shared<Value>(num);
+  out->op = "tanh";
+  out->prev_.insert(vp);
+  out->backward_ = [vp, out](){
+      vp->derivative += (1-pow(out->val,2)) * out->derivative;
+    };
 
-  auto inter1 = exp(vp);
-  auto inter2 = exp(-vp);
-  auto inter3 = inter1 - inter2;
-  auto inter4 = inter1 + inter2;
-  auto out = inter3 / inter4;
-
+  // auto inter1 = exp(vp);
+  // auto inter2 = exp(-vp);
+  // auto inter3 = inter1 - inter2;
+  // auto inter4 = inter1 + inter2;
+  // auto out = inter3 / inter4;
 
   return out;
 }

@@ -12,4 +12,4 @@ Agnode_t* drawOpNode(ValuePtr nodePtr, Agraph_t* g);
 
 void drawAllNodesEdgesRecursive(ValuePtr curNode, Agnode_t* curAgnode, Agraph_t* g);
 
-void drawGraph(ValuePtr result, char* name, GVC_t* gvc);
+void drawGraph(ValuePtr result, std::string name, GVC_t* gvc);

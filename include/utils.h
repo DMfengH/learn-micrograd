@@ -50,7 +50,7 @@ public:
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<float> duration = end - start;
     auto ms = duration.count()*1000;
-    std::cout << "[ TIMER: " << m_name << "] " <<  ms << "(ms)" << std::endl; 
+    std::cout << "[ TIMER-" << m_name << " ] " <<  ms << "(ms)" << std::endl; 
   }
 
 private:

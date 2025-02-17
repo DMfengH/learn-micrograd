@@ -121,8 +121,11 @@ void getAllNodesEdges(ValuePtr result,
   }
 }
 
-void drawGraph(ValuePtr result, char* name, GVC_t* gvc){
-  Agraph_t* graph = agopen(name, Agdirected, NULL);
+void drawGraph(ValuePtr result, std::string name, GVC_t* gvc){
+  char cname[name.size()+1];
+  strcpy(cname, name.c_str());
+
+  Agraph_t* graph = agopen(cname, Agdirected, NULL);
   agsafeset(graph, "rankdir", "LR", "");   
 
   //上面是递归的方式绘制，下面是获得所有Nodes和edges一起绘制
@@ -138,5 +141,5 @@ void drawGraph(ValuePtr result, char* name, GVC_t* gvc){
   }
   
   gvLayout(gvc, graph, "dot");
-  gvRenderFilename(gvc, graph, "png", (std::string(name) + ".png").c_str());
+  gvRenderFilename(gvc, graph, "png", (name + ".png").c_str());
 }

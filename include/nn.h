@@ -7,6 +7,8 @@
 using Logger::info;
 using Logger::warn;
 
+// 这里有个需要关注的点：每次input经过Neuron，layer，MLP，都会创建新的节点，
+//   所以要区分，什么时候创建节点并构建节点间的关系，什么时候只是修改节点的值
 class Neuron{
 public:
   Neuron(){info("construct a Neuron");}
@@ -28,13 +30,23 @@ public:
     info(ss.str());
   }
 
+  std::unique_ptr<ValuePtr[]> parameters(){
+    std::unique_ptr<ValuePtr[]> paras = std::make_unique<ValuePtr[]>(indegree+1);
+    for(size_t i=0; i<indegree; i++){
+      paras[i] = W[i];
+    }
+    paras[indegree] = b;
+    
+    return paras;
+  }
+
   // unique_ptr是不能拷贝的，所以不能直接作为参数
   ValuePtr operator()(const std::unique_ptr<ValuePtr[]>& input){
     ValuePtr res = b;
     for (int i=0; i<indegree; i++){
       res = res + W[i]*input[i]; 
     }
-
+    res = tanh(res);
     return res;
   }
   
@@ -55,6 +67,17 @@ public:
     for (int i=0; i<outDegree; i++){
       ns[i] = Neuron(inDegree);
     }
+  }
+
+  // 这里如果使用vector，应该会简单很多
+  std::unique_ptr<ValuePtr[]> parameters(){
+    size_t numParas= (inDegree+1)* outDegree;
+    std::unique_ptr<ValuePtr[]> paras = std::make_unique<ValuePtr[]>(numParas);
+    for (size_t i=0; i < numParas; i++){
+      paras[i] = ns[i/(inDegree+1)].parameters()[i%(inDegree+1)];
+    }
+
+    return paras;
   }
 
   std::unique_ptr<ValuePtr[]> operator()(const std::unique_ptr<ValuePtr[]>& input){
@@ -84,6 +107,27 @@ public:
     for (size_t i =1; i <numLayers;i++){
       layers[i] = Layer(outDegrees[i-1], outDegrees[i]);
     }
+  }
+
+  std::unique_ptr<ValuePtr[]> parameters(){
+    size_t numParas=0;
+    numParas += (inDegree+1)*outDegrees[0];
+    for (size_t i=0; i< numLayers-1; i++){
+      numParas += (outDegrees[i]+1)*outDegrees[i+1];
+    }
+    
+    std::unique_ptr<ValuePtr[]> paras = std::make_unique<ValuePtr[]>(numParas);
+    size_t index = 0;
+    for (size_t i=0; i<numLayers; i++){
+      Layer& layer = layers[i];
+      size_t numNeuronPerLayer = (layer.inDegree+1)*layer.outDegree;
+      for (size_t j=0; j<numNeuronPerLayer; j++){
+        paras[index] = layer.parameters()[j];
+        index +=1;
+      }
+    }
+    
+    return paras;
   }
 
   std::unique_ptr<ValuePtr[]> operator()(const std::unique_ptr<ValuePtr[]>& input){

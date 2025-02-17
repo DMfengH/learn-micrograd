@@ -13,7 +13,7 @@ using ValuePtr = std::shared_ptr<Value>;
 class Value{
 public:
   Value():id(maxID++){
-    std::cout << "cond";
+    // std::cout << "construct a Value";
   }
   Value(double a_val): val(a_val), id(maxID++){}
 
@@ -24,6 +24,8 @@ public:
   // karpathy的python实现中，把backward作为一个成员【和pytorch的API是一致的】，
   // 这个版本把backward单独作为一个全局函数，所以就不实现这个backward成员函数。
   // void backward(); 
+
+  // 所有的这些计算操作，都是创建新的res，而不是修改res值
   friend ValuePtr operator+(ValuePtr lhs, ValuePtr rhs);
   friend ValuePtr operator*(ValuePtr lhs, ValuePtr rhs);
   friend ValuePtr operator+(ValuePtr lhs, double num);

@@ -46,33 +46,95 @@ void test(){
 
 }
 
+void testReadTxt(){
+    std::ifstream file("../data.txt");
+    if(!file){
+        warn("无法打开文件");
+        return ;
+    }
+    double x, y, category;
+    std::string line;
+    while(std::getline(file, line)){
+        std::istringstream iss(line);
+        if(iss>> x >> y >> category){
+            info(x,"-",y,"-",category,"\n");
+        }else{
+            warn("格式错误");
+        }
+    }
+}
+
 void testNN(){
 
-    Neuron n1(3);
-    info("herer");
-    Layer l1(4,1);
-    info("herer1");
-    int outs[] = {2,1};
+    int outs[] = {16,16,1};   // 最后一层的维度，要和true_y的维度匹配。
     MLP mlp(2, std::size(outs), outs);
-    std::unique_ptr<ValuePtr[]> input = std::make_unique<ValuePtr[]>(2);
-    info("herer2");
-    
-    input[0] = std::make_shared<Value>(3);
-    input[1] = std::make_shared<Value>(2);
-    // input[2] = std::make_shared<Value>(2);
-    // input[3] = std::make_shared<Value>(2);
 
-    info("herer3");
-
-    auto anss = mlp(input);
-    ValuePtr ans = anss[0];
-    info("herer4");
+    std::vector<std::unique_ptr<ValuePtr[]>> inputs;
+    std::vector<ValuePtr> ty;
     
-    ans->derivative = 1;
-    GVC_t* gvc = gvContext();
-    drawGraph(ans, "Node_p" ,gvc);
-    backward(ans);
-    drawGraph(ans, "Node_b", gvc);
+    std::ifstream file("../data.txt");
+    if(!file){
+        warn("无法打开文件");
+        return ;
+    }
+    size_t tim = 20;
+    double x, y, category;
+    std::string line;
+    while(std::getline(file, line) && tim){
+        std::istringstream iss(line);
+        if(iss>> x >> y >> category){
+            std::unique_ptr<ValuePtr[]> input0 = std::make_unique<ValuePtr[]>(2);
+            input0[0] = std::make_shared<Value>(x);
+            input0[1] = std::make_shared<Value>(y);
+        
+            inputs.push_back(std::move(input0));
+            ty.push_back(std::make_shared<Value>(category));
+            
+        }else{
+            warn("格式错误");
+        }
+        tim -=1;
+        
+    }
+
+
+    int times =0;
+    while(times <= 3){
+        info("-------------------- epoch ", times , "--------------------------");
+        std::vector<std::unique_ptr<ValuePtr[]>> anss;
+        for (int i=0; i<inputs.size(); i++){
+            anss.push_back(mlp(inputs[i]));
+            info(anss[i][0]->val);
+        }     
+        info("anss size: ", anss.size());
+
+        ValuePtr loss = std::make_shared<Value>();
+        for (size_t i=0; i<ty.size(); i++){
+            loss = loss + pow((ty[i]-anss[i][0]),2); // 这里是有问题的，只用了最后一层的第一个节点作为输出和true_y比较
+        }
+
+        info("loas val:", loss->val);
+        
+        loss->derivative = 1;
+    
+        // 在这段代码输出的图像中，如何找哪些是w和b？在update()之后，w和b梯度会置零。
+        // GVC_t* gvc = gvContext();
+        // std::string name1 = "before";
+        // drawGraph(loss, name1 ,gvc);
+
+        backward(loss);     // 这一步非常卡
+
+        info("after backward");
+        // std::string name3 = "middle";
+        // drawGraph(loss, name3, gvc);
+
+        update(mlp);
+
+        // std::string name2 = "after";
+        // drawGraph(loss, name2, gvc);
+        times = times+1;
+    }
+    
 
 }
 
@@ -85,13 +147,13 @@ int testGNUPlot() {
         std::cerr << "Error getting current working directory" << std::endl;
     }
 
-    double e = M_E;
-    std::ofstream file("data.txt");
-    for (double x = -10.0; x < 10.0; x += 0.1)
-        file << x << " " << (pow(e,(2*x))-1) / (pow(e,(2*x))+1) << " " << x << "\n";
-    file.close();
+    // double e = M_E;
+    // std::ofstream file("data.txt");
+    // for (double x = -10.0; x < 10.0; x += 0.1)
+    //     file << x << " " << (pow(e,(2*x))-1) / (pow(e,(2*x))+1) << " " << x << "\n";
+    // file.close();
 
-    system("gnuplot -e \"set xrang [-10:10]; set yrange [-1.5:1.5]; splot 'data.txt' with lines; pause -1\"");
+    system("gnuplot -e \"set palette defined (0 'red', 1 'blue', 2 'green'); set xrange [-3:3]; set yrange [-3:3]; plot '../data.txt' with points pt 7 ps 1.5 palette notitle; pause -1\"");
     return 0;
 }
 
