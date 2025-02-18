@@ -11,13 +11,17 @@ using Logger::warn;
 //   所以要区分，什么时候创建节点并构建节点间的关系，什么时候只是修改节点的值
 class Neuron{
 public:
-  Neuron(){info("construct a Neuron");}
-  Neuron(int indegree_): indegree(indegree_), W(std::make_unique<ValuePtr[]>(indegree_)){
+  Neuron(){
+    // info("construct a Neuron");
+  }
+  Neuron(int indegree_, bool nonLin_=true): indegree(indegree_), 
+                                            W(std::make_unique<ValuePtr[]>(indegree_)),
+                                            nonLin(nonLin_){
     for(int i=0; i<indegree; i++){
       W[i] = std::make_shared<Value>(dist(gen));     // W 访问成员不需要->，感觉怪怪的？实际上，里面重载了[]操作符
       
     }
-    b = std::make_shared<Value>(dist(gen));
+    b = std::make_shared<Value>(0);
   }
 
   void print(){
@@ -46,7 +50,12 @@ public:
     for (int i=0; i<indegree; i++){
       res = res + W[i]*input[i]; 
     }
-    res = tanh(res);
+
+    if(nonLin){
+      // res = tanh(res);
+      res = relu(res);
+    }
+
     return res;
   }
   
@@ -58,14 +67,19 @@ public:
   size_t indegree = 0;
   std::unique_ptr<ValuePtr[]> W = nullptr; 
   ValuePtr b = nullptr;
+  bool nonLin = true;
 };
 
 class Layer{
 public:
-  Layer(){info("construct a layer");}
-  Layer(int inDegree_, int outDegree_): ns(std::make_unique<Neuron[]>(outDegree_)), inDegree(inDegree_), outDegree(outDegree_){
+  Layer(){
+    // info("construct a layer");
+  }
+  Layer(int inDegree_, int outDegree_, bool nonLin=true): ns(std::make_unique<Neuron[]>(outDegree_)), inDegree(inDegree_), outDegree(outDegree_){
+    double XavierInitRange = std::sqrt(6) / std::sqrt(inDegree+outDegree);
+    Neuron::dist.param(std::uniform_real_distribution<double>::param_type(-XavierInitRange, XavierInitRange));
     for (int i=0; i<outDegree; i++){
-      ns[i] = Neuron(inDegree);
+      ns[i] = Neuron(inDegree,nonLin);
     }
   }
 
@@ -105,7 +119,12 @@ public:
                                                         layers(std::make_unique<Layer[]>(numLayers_)){
     layers[0] = Layer(inDegree, outDegrees[0]);          
     for (size_t i =1; i <numLayers;i++){
-      layers[i] = Layer(outDegrees[i-1], outDegrees[i]);
+      if (i == numLayers-1){
+        layers[i] = Layer(outDegrees[i-1], outDegrees[i], false);
+      }else{
+        layers[i] = Layer(outDegrees[i-1], outDegrees[i], true);
+      }
+      
     }
   }
 

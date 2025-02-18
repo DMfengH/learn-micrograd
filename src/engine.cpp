@@ -119,3 +119,20 @@ ValuePtr pow(ValuePtr lhs, double rhs){
   ValuePtr numLeaf = std::make_shared<Value>(rhs);
   return pow(lhs, numLeaf);
 }
+
+ValuePtr relu(ValuePtr vp){
+  ValuePtr out = std::make_shared<Value>();
+  if (vp->val < 0){
+    out->val = 0;
+  }else{
+    out->val = vp->val;
+  }
+  out->op = "relu";
+  out->prev_.insert(vp);
+  out->backward_ = [vp, out](){
+      if (out->val > 0){
+        vp->derivative += out->derivative;
+      }
+    };
+  return out;
+}

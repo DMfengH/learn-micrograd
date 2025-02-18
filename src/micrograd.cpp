@@ -24,6 +24,7 @@ void topoSort(ValuePtr root, std::vector<ValuePtr>& topo){
   // 入度法：
   std::function<void(ValuePtr)> bfs = [&](ValuePtr root){
     // 获取所有Node
+    Timer* t1 = new Timer("get all Node ");
     std::unordered_set<ValuePtr> readyVisit;
     std::unordered_set<ValuePtr> visited;
     readyVisit.insert(root);
@@ -40,8 +41,10 @@ void topoSort(ValuePtr root, std::vector<ValuePtr>& topo){
         }
       }
     }
+    delete t1;
 
     // 计算所有Node的outDegree
+    Timer* t2 = new Timer("get outDegree");
     std::unordered_map<ValuePtr,int> outDegree;
     outDegree.reserve(visited.size()*2);
     for(const ValuePtr& vi: visited){
@@ -49,7 +52,9 @@ void topoSort(ValuePtr root, std::vector<ValuePtr>& topo){
         outDegree[pre]++;
       }
     }
+    delete t2;
 
+    Timer* t3 = new Timer("get topo     ");
     // topo排序：outDegree为0，就加入到topo中。
     std::unordered_set<ValuePtr> outDegreeZero;
     outDegreeZero.insert(root);
@@ -67,6 +72,7 @@ void topoSort(ValuePtr root, std::vector<ValuePtr>& topo){
       }
     }
     std::reverse(topo.begin(),topo.end());
+    delete t3;
   };
 
   // dfs(root);
@@ -112,7 +118,7 @@ void upgrade(ValuePtr root){
   }
 }
 
-void update(MLP& mlp){
+void updateParameters(MLP& mlp, double learningRate){
   std::unique_ptr<ValuePtr[]> parameters = mlp.parameters();
   size_t numParas=0;
   numParas += (mlp.inDegree+1)*mlp.outDegrees[0];
@@ -121,7 +127,54 @@ void update(MLP& mlp){
   }
   info("num of parameters in mlp:", numParas);
   for (size_t i=0; i<numParas; i++){
-      parameters[i]->val += -0.02*parameters[i]->derivative;
+      parameters[i]->val += -1*learningRate*parameters[i]->derivative;
       parameters[i]->derivative = 0;
   }
+}
+
+std::vector<std::unique_ptr<ValuePtr[]>> computeOutput(MLP& mlp, const std::vector<std::unique_ptr<ValuePtr[]>>& inputs){
+  std::vector<std::unique_ptr<ValuePtr[]>> yOut;
+  for (int i=0; i<inputs.size(); i++){
+    yOut.push_back(mlp(inputs[i]));
+  }     
+
+  return std::move(yOut);
+}
+
+// losses = [(1 + -yi*scorei).relu() for yi, scorei in zip(yb, scores)]
+ValuePtr computePredictionLoss(const std::vector<std::unique_ptr<ValuePtr[]>>& yOut, const std::vector<ValuePtr>& yT){
+  ValuePtr predictionLoss = std::make_shared<Value>();
+  for (size_t i=0; i<yOut.size(); i++){
+    predictionLoss = predictionLoss + relu((-(yT[i]*yOut[i][0]) + 1));
+    // predictionLoss = predictionLoss + pow((yT[i]-yOut[i][0]),2); // 这里是有问题的，只用了最后一层的第一个节点作为输出和true_y比较
+  }
+  warn("check preLos: ", predictionLoss->val);
+  predictionLoss = predictionLoss * pow(yT.size(),-1);
+  warn("check preLos 2: ", predictionLoss->val);
+
+  return predictionLoss;
+}
+
+// 想写成常量引用作为参数，但是mlp的函数没有实现const版，先这样
+// parametersLoss，因为参数都很小，平方后乘以alpha就更小，所以导致ParametersLoss下降的很少
+ValuePtr computeRegLoss(MLP& mlp, double alpha){
+  ValuePtr regLoss = std::make_shared<Value>(0);
+  std::unique_ptr<ValuePtr[]> parameters = mlp.parameters();
+
+  size_t numParas=0;
+  numParas += (mlp.inDegree+1)*mlp.outDegrees[0];
+  for (size_t i=0; i< mlp.numLayers-1; i++){
+      numParas += (mlp.outDegrees[i]+1)*mlp.outDegrees[i+1];
+  }
+
+  for (size_t i=0; i<numParas; i++){
+      regLoss = regLoss + pow(parameters[i],2)*alpha;
+  }
+
+  return regLoss;
+}
+
+ValuePtr computeLoss(){
+  ValuePtr totalLoss = std::make_shared<Value>();
+
 }

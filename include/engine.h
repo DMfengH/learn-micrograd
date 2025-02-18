@@ -36,10 +36,11 @@ public:
   
   friend ValuePtr operator-(ValuePtr vp);
   friend ValuePtr inv(ValuePtr vp);
-  friend ValuePtr tanh(ValuePtr vp);
   friend ValuePtr exp(ValuePtr vp); 
   friend ValuePtr pow(ValuePtr lhs, double num);
   friend ValuePtr pow(ValuePtr lhs, ValuePtr rhs);
+  friend ValuePtr tanh(ValuePtr vp);
+  friend ValuePtr relu(ValuePtr vp);
 
 
   std::string toString(){

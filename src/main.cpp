@@ -5,7 +5,7 @@ int main(){
   // testPlot();
   testNN();
   // testGNUPlot();
-
+  // info(1e-4);
 
   // testReadTxt();
 

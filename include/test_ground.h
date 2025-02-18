@@ -10,6 +10,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <iomanip>  // 用于 setprecision 和 fixed
 #include <vector>
 #include <algorithm>
 #include <memory>
@@ -47,7 +48,7 @@ void test(){
 }
 
 void testReadTxt(){
-    std::ifstream file("../data.txt");
+    std::ifstream file("../inputData.txt");
     if(!file){
         warn("无法打开文件");
         return ;
@@ -65,76 +66,102 @@ void testReadTxt(){
 }
 
 void testNN(){
-
     int outs[] = {16,16,1};   // 最后一层的维度，要和true_y的维度匹配。
     MLP mlp(2, std::size(outs), outs);
 
     std::vector<std::unique_ptr<ValuePtr[]>> inputs;
-    std::vector<ValuePtr> ty;
+    std::vector<ValuePtr> yT;
     
     std::ifstream file("../data.txt");
     if(!file){
         warn("无法打开文件");
         return ;
     }
-    size_t tim = 20;
+    size_t numInput=99;
     double x, y, category;
     std::string line;
-    while(std::getline(file, line) && tim){
+    while(std::getline(file, line) && numInput){
         std::istringstream iss(line);
         if(iss>> x >> y >> category){
-            std::unique_ptr<ValuePtr[]> input0 = std::make_unique<ValuePtr[]>(2);
-            input0[0] = std::make_shared<Value>(x);
-            input0[1] = std::make_shared<Value>(y);
+            std::unique_ptr<ValuePtr[]> input = std::make_unique<ValuePtr[]>(2);
+            input[0] = std::make_shared<Value>(x);
+            input[1] = std::make_shared<Value>(y);
         
-            inputs.push_back(std::move(input0));
-            ty.push_back(std::make_shared<Value>(category));
-            
+            inputs.push_back(std::move(input));
+            yT.push_back(std::make_shared<Value>(category));
         }else{
             warn("格式错误");
         }
-        tim -=1;
-        
+        numInput--;
     }
 
-
+    double learningRate = 1.0;
     int times =0;
-    while(times <= 3){
+    while(times <= 100){
         info("-------------------- epoch ", times , "--------------------------");
-        std::vector<std::unique_ptr<ValuePtr[]>> anss;
-        for (int i=0; i<inputs.size(); i++){
-            anss.push_back(mlp(inputs[i]));
-            info(anss[i][0]->val);
-        }     
-        info("anss size: ", anss.size());
+        std::vector<std::unique_ptr<ValuePtr[]>> yOut;
+        yOut = computeOutput(mlp, inputs);
 
-        ValuePtr loss = std::make_shared<Value>();
-        for (size_t i=0; i<ty.size(); i++){
-            loss = loss + pow((ty[i]-anss[i][0]),2); // 这里是有问题的，只用了最后一层的第一个节点作为输出和true_y比较
-        }
+        ValuePtr predictionLoss;
+        predictionLoss = computePredictionLoss(yOut, yT);
+        info("prediction_Loss:", predictionLoss->val);
 
-        info("loas val:", loss->val);
+        ValuePtr regLoss;
+        regLoss = computeRegLoss(mlp);
+        info("reg_Loss:", regLoss->val);
+
+        ValuePtr totalLoss = predictionLoss + regLoss;
+        info("totalLoss val:", totalLoss->val);
         
-        loss->derivative = 1;
+        totalLoss->derivative = 1;
     
         // 在这段代码输出的图像中，如何找哪些是w和b？在update()之后，w和b梯度会置零。
         // GVC_t* gvc = gvContext();
         // std::string name1 = "before";
         // drawGraph(loss, name1 ,gvc);
 
-        backward(loss);     // 这一步非常卡
+        backward(totalLoss);     // 这一步非常卡
 
-        info("after backward");
         // std::string name3 = "middle";
         // drawGraph(loss, name3, gvc);
 
-        update(mlp);
+        learningRate = 1.0 - 0.9*times/100;
+        updateParameters(mlp,learningRate);
 
         // std::string name2 = "after";
         // drawGraph(loss, name2, gvc);
         times = times+1;
     }
-    
+
+    std::vector<std::unique_ptr<ValuePtr[]>> inputsForDraw;
+    for(double i=-3; i<3; i=i+0.1){
+        for(double j=-3; j<3; j=j+0.1){
+            std::unique_ptr<ValuePtr[]> input = std::make_unique<ValuePtr[]>(2);
+            input[0] = std::make_shared<Value>(i);
+            input[1] = std::make_shared<Value>(j);
+        
+            inputsForDraw.push_back(std::move(input));
+        }
+    }
+    std::vector<std::unique_ptr<ValuePtr[]>> yForDraw;
+    yForDraw = computeOutput(mlp, inputsForDraw);
+    info("inputsize: ", inputsForDraw.size(), "  outsize: ", yForDraw.size());
+    std::ofstream fileOut("../outPutForDraw.txt");
+    std::ostringstream buffer;
+    buffer << std::fixed << std::setprecision(2);
+    for(size_t i=0; i<inputsForDraw.size(); i++){
+        buffer << inputsForDraw[i][0]->val << " " << inputsForDraw[i][1]->val << " ";
+        if (yForDraw[i][0]->val > 0){
+            buffer << 1 << "\n";
+        }else{
+            buffer << 0 << "\n";
+        }
+        fileOut << buffer.str();
+        buffer.str("");
+    }
+    file.clear();
+    file.seekg(0,std::ios::beg);
+    fileOut << file.rdbuf();
 
 }
 

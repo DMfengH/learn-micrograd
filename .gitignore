@@ -7,3 +7,6 @@
 !.gitignore
 !.vscode/
 !.vscode/*
+!draw.gp
+!outPutForDraw.txt
+!inputData.txt
