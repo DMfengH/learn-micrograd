@@ -78,7 +78,8 @@
 
   "C_Cpp.default.includePath": [
     // "${default}",
-    // "${workspaceFolder}/**",
+    // "${workspaceFolder}/src",
+    // "${workspaceFolder}/include",
     // "/usr/include/eigen3",
     // "/usr/include/pcl-1.10",
   ],

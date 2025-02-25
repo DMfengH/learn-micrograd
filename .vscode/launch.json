@@ -8,10 +8,10 @@
       "name": "C++调试launch",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/bin/Autograd", // 编译后的二进制文件
+      "program": "${workspaceFolder}/bin/micrograd", // 编译后的二进制文件
       "args": [],
       "stopAtEntry": false,
-      "cwd": "${workspaceFolder}",
+      "cwd": "${workspaceFolder}/bin",
       "environment": [],
       "externalConsole": false,
       "MIMode": "gdb", // 或者 "lldb"

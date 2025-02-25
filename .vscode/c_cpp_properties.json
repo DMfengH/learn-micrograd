@@ -6,8 +6,8 @@
         "databaseFilename": "${default}",
         "limitSymbolsToIncludedHeaders": true,
         "path": [
-          // "${workspaceFolder}/src",
-          // "${workspaceFolder}/include",
+          "${workspaceFolder}/src",
+          "${workspaceFolder}/include",  //  使用 /** 表示递归搜索子目录，避免遗漏文件。
           // "/usr/include"
         ]
       },

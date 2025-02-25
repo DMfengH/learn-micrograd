@@ -10,11 +10,13 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <iomanip>  // 用于 setprecision 和 fixed
+#include <iomanip>  // 用于格式化输出，例如： setprecision 和 fixed
 #include <vector>
 #include <algorithm>
 #include <memory>
 #include <set>
+#include <unordered_map>
+#include <tuple>
 #include <functional>
 #include <bitset>
 // unistd是调用Unix系统API的；limits包含了一系列宏，表示了不同数据类型能表示的最大值和最小值，例如INT_MAX
@@ -66,15 +68,16 @@ void testReadTxt(){
 }
 
 void testNN(){
+    // Logger::setLogLevel(Logger::logLevel::WarnLevel);
     int outs[] = {16,16,1};   // 最后一层的维度，要和true_y的维度匹配。
     MLP mlp(2, std::size(outs), outs);
 
     std::vector<std::unique_ptr<ValuePtr[]>> inputs;
     std::vector<ValuePtr> yT;
     
-    std::ifstream file("../data.txt");
+    std::ifstream file("../inputData.txt");
     if(!file){
-        warn("无法打开文件");
+        warn("无法打开文件: ", "../inputData.txt");
         return ;
     }
     size_t numInput=99;
@@ -95,73 +98,83 @@ void testNN(){
         numInput--;
     }
 
+    std::vector<std::unique_ptr<ValuePtr[]>> yOut;
+    ValuePtr predictionLoss = std::make_shared<Value>();
+    ValuePtr regLoss;
+    ValuePtr totalLoss;
+
+    double alpha = 0.001; // 比0.1和0.01合适
     double learningRate = 1.0;
-    int times =0;
-    while(times <= 100){
-        info("-------------------- epoch ", times , "--------------------------");
-        std::vector<std::unique_ptr<ValuePtr[]>> yOut;
+    int totalTime = 100;
+    int time =0;
+    while(time < totalTime){
+        std::unique_ptr<Timer> t = std::make_unique<Timer>("cost time per epoch");
+        info("-------------------- epoch ", time , "--------------------------");
+
         yOut = computeOutput(mlp, inputs);
 
-        ValuePtr predictionLoss;
         predictionLoss = computePredictionLoss(yOut, yT);
-        info("prediction_Loss:", predictionLoss->val);
+        info("prediction_Loss: ", predictionLoss->val);
 
-        ValuePtr regLoss;
         regLoss = computeRegLoss(mlp);
         info("reg_Loss:", regLoss->val);
 
-        ValuePtr totalLoss = predictionLoss + regLoss;
+        totalLoss = predictionLoss + regLoss*alpha;
         info("totalLoss val:", totalLoss->val);
         
-        totalLoss->derivative = 1;
-    
         // 在这段代码输出的图像中，如何找哪些是w和b？在update()之后，w和b梯度会置零。
         // GVC_t* gvc = gvContext();
         // std::string name1 = "before";
         // drawGraph(loss, name1 ,gvc);
 
-        backward(totalLoss);     // 这一步非常卡
+        totalLoss->derivative = 1;
+        backward(totalLoss);    
 
         // std::string name3 = "middle";
         // drawGraph(loss, name3, gvc);
 
-        learningRate = 1.0 - 0.9*times/100;
+        learningRate = 1 - 0.9*time/totalTime;
         updateParameters(mlp,learningRate);
 
         // std::string name2 = "after";
         // drawGraph(loss, name2, gvc);
-        times = times+1;
+        time = time+1;
     }
 
-    std::vector<std::unique_ptr<ValuePtr[]>> inputsForDraw;
-    for(double i=-3; i<3; i=i+0.1){
-        for(double j=-3; j<3; j=j+0.1){
-            std::unique_ptr<ValuePtr[]> input = std::make_unique<ValuePtr[]>(2);
-            input[0] = std::make_shared<Value>(i);
-            input[1] = std::make_shared<Value>(j);
-        
-            inputsForDraw.push_back(std::move(input));
+    bool drawOrNot= false;
+    if (drawOrNot){
+        std::vector<std::unique_ptr<ValuePtr[]>> inputsForDraw;
+        for(double i=-3; i<3; i=i+0.1){
+            for(double j=-3; j<3; j=j+0.1){
+                std::unique_ptr<ValuePtr[]> input = std::make_unique<ValuePtr[]>(2);
+                input[0] = std::make_shared<Value>(i);
+                input[1] = std::make_shared<Value>(j);
+            
+                inputsForDraw.push_back(std::move(input));
+
+            }
         }
-    }
-    std::vector<std::unique_ptr<ValuePtr[]>> yForDraw;
-    yForDraw = computeOutput(mlp, inputsForDraw);
-    info("inputsize: ", inputsForDraw.size(), "  outsize: ", yForDraw.size());
-    std::ofstream fileOut("../outPutForDraw.txt");
-    std::ostringstream buffer;
-    buffer << std::fixed << std::setprecision(2);
-    for(size_t i=0; i<inputsForDraw.size(); i++){
-        buffer << inputsForDraw[i][0]->val << " " << inputsForDraw[i][1]->val << " ";
-        if (yForDraw[i][0]->val > 0){
-            buffer << 1 << "\n";
-        }else{
-            buffer << 0 << "\n";
+        std::vector<std::unique_ptr<ValuePtr[]>> yForDraw;
+        yForDraw = computeOutput(mlp, inputsForDraw);
+        info("inputsize: ", inputsForDraw.size(), "  outsize: ", yForDraw.size());
+        std::ofstream fileOut("../outPutForDraw.txt");
+        std::ostringstream buffer;
+        buffer << std::fixed << std::setprecision(2);
+        for(size_t i=0; i<inputsForDraw.size(); i++){
+            buffer << inputsForDraw[i][0]->val << " " << inputsForDraw[i][1]->val << " ";
+            if (yForDraw[i][0]->val > 0){
+                buffer << 1 << "\n";
+            }else{
+                buffer << 0 << "\n";
+            }
+            fileOut << buffer.str();
+            buffer.str("");
         }
-        fileOut << buffer.str();
-        buffer.str("");
+        file.clear();
+        file.seekg(0,std::ios::beg);
+        fileOut << file.rdbuf();
     }
-    file.clear();
-    file.seekg(0,std::ios::beg);
-    fileOut << file.rdbuf();
+    
 
 }
 
@@ -190,31 +203,29 @@ void testAutoGrad(){
   ValuePtr c = a+b;
   ValuePtr d = std::make_shared<Value>(3);
 
-  ValuePtr e= c*d;
+  ValuePtr e = c*d;
   ValuePtr f = b * e;
-  ValuePtr g = f + 20;   // 这个+操作有问题, debug和release模式都有【已经修复】
-  ValuePtr h= g + e;
+//   ValuePtr g = f + 20;   // 这个+操作有问题, debug和release模式都有【已经修复】
+
+  ValuePtr h = f + e;
 
   h->derivative = 1;
 
   GVC_t* gvc = gvContext();
-  drawGraph(h, "autograd" ,gvc);
+  drawGraph(h, "../autograd" ,gvc);
   backward(h);
-  drawGraph(h, "backward", gvc);
-
-  // verify the numerical derivative
-  float ep = 0.001;
-  // a->val = (a->val) + ep;
-  // b->val = b->val +ep;
-  // c = a+b;
-  // c->val = c->val +ep; 
-  d->val = d->val + ep;
-
-  e = c*d;
-  f = b*e;
-  g = f+20;
-  ValuePtr h2 = g+e;
-  float deriv = (h2->val - h->val) / ep;
-  info("derivative: ", deriv);
+  drawGraph(h, "../backward", gvc);
 
 }
+
+
+void testCache(){
+    {
+        ValuePtr a = std::make_shared<Value>(5);
+        ValuePtr b = std::make_shared<Value>(2);
+        ValuePtr c = a+b;
+        c = a+b;
+    }
+
+}
+

@@ -25,7 +25,4 @@ ValuePtr computeLoss();
 
 ValuePtr computePredictionLoss(const std::vector<std::unique_ptr<ValuePtr[]>>& yOut, const std::vector<ValuePtr>& yT);
 
-// 这里alpha是看输出的PreLoss和RegLoss的比例，大概设置的一个
-// 若 λ 太小，parameterLoss 影响不大，几乎不下降。
-// 若 λ 太大，w 可能会过度收缩，影响模型能力。
-ValuePtr computeRegLoss(MLP& mlp, double alpha=1e-3); 
+ValuePtr computeRegLoss(MLP& mlp); 

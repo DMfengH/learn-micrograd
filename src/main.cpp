@@ -5,9 +5,8 @@ int main(){
   // testPlot();
   testNN();
   // testGNUPlot();
-  // info(1e-4);
-
   // testReadTxt();
+  // testCache();
 
 
   info("---------------------------  The program is end at there  ---------------------------");
