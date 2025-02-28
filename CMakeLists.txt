@@ -50,7 +50,7 @@ include_directories(${GRAPHVIZ_INCLUDE_DIRS})
 
 file(GLOB SOURCE "src/*.cpp")
 add_executable(micrograd ${SOURCE})
-target_link_libraries(micrograd ${GRAPHVIZ_LIBRARIES})
+target_link_libraries(micrograd ${GRAPHVIZ_LIBRARIES} pthread)
 
 
 

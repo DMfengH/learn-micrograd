@@ -3,43 +3,44 @@
 std::mt19937 Neuron::gen(std::random_device{}());
 std::uniform_real_distribution<double> Neuron::dist(-1.0, 1.0);
 
-Neuron::Neuron(int indegree_, bool nonLin_): indegree(indegree_), 
-                                                  W(std::make_unique<ValuePtr[]>(indegree_)),
-                                                  nonLin(nonLin_){
-    for(int i=0; i<indegree; i++){
-      W[i] = std::make_shared<Value>(dist(gen));     // W 访问成员不需要->，感觉怪怪的？实际上，里面重载了[]操作符
-    }
-    b = std::make_shared<Value>(0);
+Neuron::Neuron(int indegree_, bool nonLin_) : indegree(indegree_), nonLin(nonLin_) {
+  W.reserve(indegree);
+  for (int i = 0; i < indegree; i++) {
+    W.emplace_back(std::make_shared<Value>(dist(gen)));
+  }
+  b = std::make_shared<Value>(0);
 }
 
-void Neuron::print(){
+void Neuron::print() {
   std::stringstream ss;
   ss << "Neuron{W: ";
-  for(int i=0; i<this->indegree; i++){
+  for (int i = 0; i < this->indegree; i++) {
     ss << W[i]->val << " ";
   }
   ss << "b: " << b->val << "}\n";
   info(ss.str());
 }
 
-std::unique_ptr<ValuePtr[]> Neuron::parameters(){
-  std::unique_ptr<ValuePtr[]> paras = std::make_unique<ValuePtr[]>(indegree+1);
-  for(size_t i=0; i<indegree; i++){
-    paras[i] = W[i];
+std::vector<ValuePtr> Neuron::parameters() {
+  std::vector<ValuePtr> paras;
+  paras.reserve(indegree + 1);
+
+  for (size_t i = 0; i < indegree; i++) {
+    paras.push_back(W[i]);
   }
-  paras[indegree] = b;
-  
+  paras.push_back(b);
+
   return paras;
 }
 
 // unique_ptr是不能拷贝的，所以不能直接作为参数
-ValuePtr Neuron::operator()(const std::unique_ptr<ValuePtr[]>& input){
-  ValuePtr res = b;       // 这个还没有存储到cache中
-  for (int i=0; i<indegree; i++){
-    res = res + W[i]*input[i]; 
+ValuePtr Neuron::operator()(const std::vector<ValuePtr>& input) {
+  ValuePtr res = b;
+  for (int i = 0; i < indegree; i++) {
+    res = res + W[i] * input[i];  // 这种代码如何写两个两个相加，而不是都往res上累加
   }
 
-  if(nonLin){
+  if (nonLin) {
     // res = tanh(res);
     res = relu(res);
   }
@@ -47,77 +48,78 @@ ValuePtr Neuron::operator()(const std::unique_ptr<ValuePtr[]>& input){
   return res;
 }
 
-Layer::Layer(int inDegree_, int outDegree_, bool nonLin): ns(std::make_unique<Neuron[]>(outDegree_)), 
-                                                                inDegree(inDegree_), 
-                                                                outDegree(outDegree_){
-  double XavierInitRange = std::sqrt(6) / std::sqrt(inDegree+outDegree);
-  Neuron::dist.param(std::uniform_real_distribution<double>::param_type(-XavierInitRange, XavierInitRange));
-  
-  for (int i=0; i<outDegree; i++){
-    ns[i] = Neuron(inDegree,nonLin);
+Layer::Layer(int inDegree_, int outDegree_, bool nonLin)
+    : inDegree(inDegree_), outDegree(outDegree_) {
+  double XavierInitRange = std::sqrt(6) / std::sqrt(inDegree + outDegree);
+  Neuron::dist.param(std::uniform_real_distribution<double>::param_type(-XavierInitRange,
+                                                                        XavierInitRange));
+  ns.reserve(outDegree);
+  for (int i = 0; i < outDegree; i++) {
+    ns.emplace_back(inDegree, nonLin);
   }
 }
 
-std::unique_ptr<ValuePtr[]> Layer::parameters(){
-  size_t numParas= (inDegree+1)* outDegree;
-  std::unique_ptr<ValuePtr[]> paras = std::make_unique<ValuePtr[]>(numParas);
-  for (size_t i=0; i < numParas; i++){
-    paras[i] = ns[i/(inDegree+1)].parameters()[i%(inDegree+1)];
+std::vector<ValuePtr> Layer::parameters() {
+  size_t numParas = (inDegree + 1) * outDegree;
+  std::vector<ValuePtr> paras;
+  paras.reserve(numParas);
+
+  for (size_t i = 0; i < outDegree; i++) {
+    // Neuron& n = ns[i];
+    const std::vector<ValuePtr>& nv = ns[i].parameters();
+    paras.insert(paras.end(), nv.begin(), nv.end());
   }
 
   return paras;
 }
 
-std::unique_ptr<ValuePtr[]> Layer::operator()(const std::unique_ptr<ValuePtr[]>& input){
-  std::unique_ptr<ValuePtr[]> out = std::make_unique<ValuePtr[]>(outDegree);
-  for(int i=0; i< outDegree; i++){
-    out[i] = ns[i](input);
-  } 
+std::vector<ValuePtr> Layer::operator()(const std::vector<ValuePtr>& input) {
+  std::vector<ValuePtr> out;
+  out.reserve(outDegree);
+  for (int i = 0; i < outDegree; i++) {
+    out.push_back(ns[i](input));
+  }
 
   return out;
 }
 
-MLP::MLP(int inDegree_, int numLayers_, int* outDegrees_): inDegree(inDegree_), 
-                                                        numLayers(numLayers_), 
-                                                        outDegrees(outDegrees_),    
-                                                        layers(std::make_unique<Layer[]>(numLayers_)){
-  layers[0] = Layer(inDegree, outDegrees[0]);          
-  for (size_t i =1; i <numLayers;i++){
-    if (i == numLayers-1){
-      layers[i] = Layer(outDegrees[i-1], outDegrees[i], false);
-    }else{
-      layers[i] = Layer(outDegrees[i-1], outDegrees[i], true);
+MLP::MLP(int inDegree_, int numLayers_, int* outDegrees_)
+    : inDegree(inDegree_), numLayers(numLayers_), outDegrees(outDegrees_) {
+  layers.reserve(numLayers);
+  layers.emplace_back(inDegree, outDegrees[0]);
+  for (size_t i = 1; i < numLayers; i++) {
+    if (i == numLayers - 1) {
+      layers.emplace_back(outDegrees[i - 1], outDegrees[i], false);
+    } else {
+      layers.emplace_back(outDegrees[i - 1], outDegrees[i], true);
     }
   }
 }
 
-std::unique_ptr<ValuePtr[]> MLP::parameters(){
-  size_t numParas=0;
-  numParas += (inDegree+1)*outDegrees[0];
-  for (size_t i=0; i< numLayers-1; i++){
-    numParas += (outDegrees[i]+1)*outDegrees[i+1];
+std::vector<ValuePtr> MLP::parameters() {
+  size_t numParas = 0;
+  numParas += (inDegree + 1) * outDegrees[0];
+  for (size_t i = 0; i < numLayers - 1; i++) {
+    numParas += (outDegrees[i] + 1) * outDegrees[i + 1];
   }
-  
-  std::unique_ptr<ValuePtr[]> paras = std::make_unique<ValuePtr[]>(numParas);
-  size_t index = 0;
-  for (size_t i=0; i<numLayers; i++){
-    Layer& layer = layers[i];
-    size_t numNeuronPerLayer = (layer.inDegree+1)*layer.outDegree;
-    for (size_t j=0; j<numNeuronPerLayer; j++){
-      paras[index] = layer.parameters()[j];
-      index +=1;
-    }
+
+  std::vector<ValuePtr> paras;
+  paras.reserve(numParas);
+
+  for (size_t i = 0; i < numLayers; i++) {
+    const std::vector<ValuePtr> lv = layers[i].parameters();
+    paras.insert(paras.end(), lv.begin(), lv.end());
   }
-  
+
   return paras;
 }
 
-std::unique_ptr<ValuePtr[]> MLP::operator()(const std::unique_ptr<ValuePtr[]>& input){
-  std::unique_ptr<ValuePtr[]> res;
+std::vector<ValuePtr> MLP::operator()(const std::vector<ValuePtr>& input) {
+  std::vector<ValuePtr> res;
   res = layers[0](input);
-  for (size_t i=1; i<numLayers; i++){
+  for (size_t i = 1; i < numLayers; i++) {
     res = layers[i](res);
   }
-  
+
   return res;
 }

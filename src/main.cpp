@@ -1,6 +1,6 @@
 #include "test_ground.h"
 
-int main(){
+int main() {
   // testAutoGrad();
   // testPlot();
   testNN();
@@ -8,6 +8,7 @@ int main(){
   // testReadTxt();
   // testCache();
 
-
-  info("---------------------------  The program is end at there  ---------------------------");
+  info(
+      "---------------------------  The program is end at there  "
+      "---------------------------");
 }
