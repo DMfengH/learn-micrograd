@@ -83,10 +83,10 @@ void backward(ValuePtr root) {
   topoSort(root, topo);
 
   for (auto it = topo.rbegin(); it != topo.rend(); it++) {
-    if ((*it)->op.empty()) {
+    if ((*it)->op == Operation::INVALID) {
       continue;
     } else {
-      (*it)->backward_();
+      (*it)->backward();
     }
   }
 }

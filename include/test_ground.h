@@ -107,7 +107,7 @@ void testNN() {
 
   double alpha = 0.001;  // 比0.1和0.01合适
   double learningRate = 1.0;
-  int totalTime = 1;
+  int totalTime = 100;
   int time = 0;
   while (time < totalTime) {
     std::unique_ptr<Timer> t = std::make_unique<Timer>("time cost per epoch");
@@ -213,7 +213,7 @@ void testNN() {
     yForDraw.insert(yForDraw.end(), yForDraw1.begin(), yForDraw1.end());
     yForDraw.insert(yForDraw.end(), yForDraw2.begin(), yForDraw2.end());
     delete loop;
-  
+
     inputsForDraw1.clear();
     inputsForDraw2.clear();
     yForDraw1.clear();
@@ -233,7 +233,7 @@ void testNN() {
     fileOut << file.rdbuf();
 
     inputsForDraw.clear();
-    
+
     start = std::chrono::high_resolution_clock::now();
     yForDraw.clear();
   }

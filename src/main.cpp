@@ -2,7 +2,7 @@
 
 int main() {
   // testAutoGrad();
-  // testPlot();
+
   testNN();
   // testGNUPlot();
   // testReadTxt();

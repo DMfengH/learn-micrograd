@@ -3,7 +3,20 @@
 int Value::maxID = 0;
 thread_local std::unordered_map<std::pair<ValuePtr, ValuePtr>, ValuePtr, PairHash> Value::cache;
 ValuePtr Value::placeHolder = std::make_shared<Value>();
+ValuePtr Value::placeHolder2 = std::make_shared<Value>();
 std::mutex Value::mtx;
+
+std::string toString(Operation op) {
+  static const std::unordered_map<Operation, std::string> opMap = {
+      {Operation::ADD, "ADD"},           {Operation::SUBTRACT, "SUBTRACT"},
+      {Operation::MULTIPLY, "MULTIPLY"}, {Operation::DIVIDE, "DIVIDE"},
+      {Operation::TANH, "TANH"},         {Operation::NEG, "NEG"},
+      {Operation::INV, "INV"},           {Operation::EXP, "EXP"},
+      {Operation::POW, "POW"},           {Operation::RELU, "RELU"},
+  };
+  auto it = opMap.find(op);
+  return (it != opMap.end()) ? it->second : "UNKNOWN";
+}
 
 // 这里为什么使用智能指针？
 // 因为Node的成员中有指向其他Node的指针 ×
@@ -22,20 +35,11 @@ ValuePtr operator+(ValuePtr lhs, ValuePtr rhs) {
         0;  // 在这里把所有梯度都设为0是不是一个好的时机？？？还是要专门写个函数把所有的Value的梯度都设置为0
   } else {
     out = std::make_shared<Value>(lhs->val + rhs->val);
-    out->op = "+";
+    out->op = Operation::ADD;
     out->derivative = 0;
-    out->prev_.insert(lhs);
-    out->prev_.insert(rhs);
+    out->prev_.push_back(lhs);
+    out->prev_.push_back(rhs);
 
-    // std::weak_ptr 不能直接访问对象，它必须通过 lock() 转换成 std::shared_ptr，并且
-    // lock() 可能失败（返回空指针 nullptr）。
-    std::weak_ptr<Value> outWeak = out;
-    out->backward_ = [lhs, rhs, outWeak]() {
-      if (auto outShared = outWeak.lock()) {
-        lhs->derivative += outShared->derivative;
-        rhs->derivative += outShared->derivative;
-      }
-    };
     Value::cache.insert({check, out});
   }
 
@@ -57,18 +61,11 @@ ValuePtr operator*(ValuePtr lhs, ValuePtr rhs) {
     double a = lhs->val;
     double b = rhs->val;
     out = std::make_shared<Value>(a * b);
-    out->op = "*";
+    out->op = Operation::MULTIPLY;
     out->derivative = 0;
-    out->prev_.insert(lhs);
-    out->prev_.insert(rhs);
+    out->prev_.push_back(lhs);
+    out->prev_.push_back(rhs);
 
-    std::weak_ptr<Value> outWeak = out;
-    out->backward_ = [lhs, rhs, outWeak]() {
-      if (auto outShared = outWeak.lock()) {
-        lhs->derivative += rhs->val * outShared->derivative;
-        rhs->derivative += lhs->val * outShared->derivative;
-      }
-    };
     Value::cache.insert({check, out});
   }
 
@@ -117,6 +114,27 @@ ValuePtr operator*(ValuePtr lhs, double num) {
   return lhs * rhsNum;
 }
 
+ValuePtr operator*(ValuePtr lhs, InputVal iv) {
+  double num = lhs->val * iv.val;
+  auto check = std::make_pair(lhs, Value::placeHolder);
+  ValuePtr out;
+  if (Value::cache.find(check) != Value::cache.end()) {
+    out = Value::cache[check];
+    out->val = num;
+    out->op = Operation::MULI;
+    out->derivative = 0;
+    out->prev_[1]->val = iv.val;
+  } else {
+    out = std::make_shared<Value>(num);
+    out->derivative = 0;
+    out->op = Operation::MULI;
+    out->prev_.push_back(lhs);
+    out->prev_.push_back(std::make_shared<Value>(iv.val));
+    Value::cache.insert({check, out});
+  }
+  return out;
+}
+
 // tanh的计算有多种方式
 // 每个value只能进行一个这种单操作数的操作
 ValuePtr tanh(ValuePtr vp) {
@@ -133,15 +151,10 @@ ValuePtr tanh(ValuePtr vp) {
     out->derivative = 0;
   } else {
     out = std::make_shared<Value>(num);
-    out->op = "tanh";
+    out->op = Operation::TANH;
     out->derivative = 0;
-    out->prev_.insert(vp);
-    std::weak_ptr<Value> outWeak = out;
-    out->backward_ = [vp, outWeak]() {
-      if (auto outShared = outWeak.lock()) {
-        vp->derivative += (1 - pow(outShared->val, 2)) * outShared->derivative;
-      }
-    };
+    out->prev_.push_back(vp);
+
     Value::cache.insert({check, out});
   }
 
@@ -162,14 +175,9 @@ ValuePtr operator-(ValuePtr vp) {
     out->derivative = 0;
   } else {
     out = std::make_shared<Value>(num);
-    out->op = "neg";
-    out->prev_.insert(vp);
-    std::weak_ptr<Value> outWeak = out;
-    out->backward_ = [vp, outWeak]() {
-      if (auto outShared = outWeak.lock()) {
-        vp->derivative += -1 * outShared->derivative;
-      }
-    };
+    out->op = Operation::NEG;
+    out->prev_.push_back(vp);
+
     Value::cache.insert({check, out});
   }
   return out;
@@ -193,14 +201,9 @@ ValuePtr inv(ValuePtr vp) {
     out->derivative = 0;
   } else {
     out = std::make_shared<Value>(num);
-    out->op = "inv";
-    out->prev_.insert(vp);
-    std::weak_ptr<Value> outWeak = out;
-    out->backward_ = [vp, outWeak]() {
-      if (auto outShared = outWeak.lock()) {
-        vp->derivative += -1 * pow(vp->val, -2) * outShared->derivative;
-      }
-    };
+    out->op = Operation::INV;
+    out->prev_.push_back(vp);
+
     Value::cache.insert({check, out});
   }
   return out;
@@ -227,14 +230,9 @@ ValuePtr exp(ValuePtr vp) {
     out->derivative = 0;
   } else {
     out = std::make_shared<Value>(num);
-    out->op = "exp";
-    out->prev_.insert(vp);
-    std::weak_ptr<Value> outWeak = out;
-    out->backward_ = [vp, outWeak]() {
-      if (auto outShared = outWeak.lock()) {
-        vp->derivative += outShared->val * outShared->derivative;
-      }
-    };
+    out->op = Operation::EXP;
+    out->prev_.push_back(vp);
+
     Value::cache.insert({check, out});
   }
   return out;
@@ -254,16 +252,10 @@ ValuePtr pow(ValuePtr lhs, ValuePtr rhs) {
     out->derivative = 0;
   } else {
     out = std::make_shared<Value>(num);
-    out->op = "pow";
-    out->prev_.insert(lhs);
-    out->prev_.insert(rhs);
-    std::weak_ptr<Value> outWeak = out;
-    out->backward_ = [lhs, rhs, outWeak]() {
-      if (auto outShared = outWeak.lock()) {
-        lhs->derivative += (rhs->val) * pow(lhs->val, rhs->val - 1) * outShared->derivative;
-        rhs->derivative += outShared->val * log(lhs->val) * outShared->derivative;
-      }
-    };
+    out->op = Operation::POW;
+    out->prev_.push_back(lhs);
+    out->prev_.push_back(rhs);
+
     Value::cache.insert({check, out});
   }
   return out;
@@ -275,7 +267,7 @@ ValuePtr pow(ValuePtr lhs, double rhs) {
     // std::lock_guard<std::mutex> lock(Value::mtx);
 
     double num = rhs;
-    auto check = std::make_pair(lhs, Value::placeHolder);
+    auto check = std::make_pair(lhs, Value::placeHolder2);
 
     if (Value::cache.find(check) != Value::cache.end()) {
       rhsNum = Value::cache[check];
@@ -307,17 +299,55 @@ ValuePtr relu(ValuePtr vp) {
     out->derivative = 0;
   } else {
     out = std::make_shared<Value>(num);  // 这里最开始写错了：声明了一个新的out
-    out->op = "relu";
-    out->prev_.insert(vp);
-    std::weak_ptr<Value> outWeak = out;
-    out->backward_ = [vp, outWeak]() {
-      if (auto outShared = outWeak.lock()) {
-        if (outShared->val > 0) {
-          vp->derivative += outShared->derivative;
-        }
-      }
-    };
+    out->op = Operation::RELU;
+    out->prev_.push_back(vp);
+
     Value::cache.insert({check, out});
   }
   return out;
+}
+
+void Value::backward() {
+  switch (this->op) {
+    case Operation::ADD:
+      this->prev_[0]->derivative += this->derivative;
+      this->prev_[1]->derivative += this->derivative;
+      break;
+    case Operation::SUBTRACT:
+      break;
+    case Operation::MULTIPLY:
+      this->prev_[0]->derivative += this->prev_[1]->val * this->derivative;
+      this->prev_[1]->derivative += this->prev_[0]->val * this->derivative;
+      break;
+    case Operation::DIVIDE:
+      break;
+    case Operation::TANH:
+      this->prev_[0]->derivative += (1 - pow(this->val, 2)) * this->derivative;
+      break;
+    case Operation::NEG:
+      this->prev_[0]->derivative += -1 * this->derivative;
+      break;
+    case Operation::INV:
+      this->prev_[0]->derivative += -1 * pow(this->prev_[0]->val, -2) * this->derivative;
+      break;
+    case Operation::EXP:
+      this->prev_[0]->derivative += this->val * this->derivative;
+      break;
+    case Operation::POW:
+      this->prev_[0]->derivative += (this->prev_[1]->val) *
+                                    pow(this->prev_[0]->val, this->prev_[1]->val - 1) *
+                                    this->derivative;
+      this->prev_[1]->derivative += this->val * log(this->prev_[0]->val) * this->derivative;
+      break;
+    case Operation::RELU:
+      if (this->val > 0) {
+        this->prev_[0]->derivative += this->derivative;
+      }
+      break;
+    case Operation::ADDI:
+      this->prev_[0]->derivative += this->derivative;
+      break;
+    case Operation::MULI:
+      this->prev_[0]->derivative += this->prev_[1]->val * this->derivative;
+  }
 }
