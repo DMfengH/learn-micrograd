@@ -28,51 +28,14 @@
 using Logger::info;
 using Logger::warn;
 
-#define BIT(x) (1 << x)
-
-void test() {
-  ValuePtr a = std::make_shared<Value>(2.0);
-  ValuePtr b = std::make_shared<Value>(0);
-  ValuePtr w1 = std::make_shared<Value>(-3.0);
-  ValuePtr w2 = std::make_shared<Value>(1.0);
-  ValuePtr aw1 = a * w1;
-  ValuePtr bw2 = b * w2;
-  ValuePtr aw1bw2 = aw1 + bw2;
-  ValuePtr bias = std::make_shared<Value>(6.8813735);
-  auto aw1bw2bias = aw1bw2 + bias;
-  auto result = tanh(aw1bw2bias);
-
-  result->derivative = 1;
-  GVC_t* gvc = gvContext();
-  drawGraph(result, "Node_p", gvc);
-  backward(result);
-  drawGraph(result, "Node_b", gvc);
-}
-
-void testReadTxt() {
-  std::ifstream file("../inputData.txt");
-  if (!file) {
-    warn("无法打开文件");
-    return;
-  }
-  double x, y, category;
-  std::string line;
-  while (std::getline(file, line)) {
-    std::istringstream iss(line);
-    if (iss >> x >> y >> category) {
-      info(x, "-", y, "-", category, "\n");
-    } else {
-      warn("格式错误");
-    }
-  }
-}
+#define BIT(x) (1 << x) t
 
 void testNN() {
   // Logger::setLogLevel(Logger::logLevel::WarnLevel);
-  int outs[] = {16, 16, 1};  // 最后一层的维度，要和true_y的维度匹配。
+  int outs[] = {16, 16, 1};  // 最后一层的维度，要和true_y的维度匹配。{16, 16, 1}
   MLP mlp(2, std::size(outs), outs);
 
-  std::vector<std::vector<ValuePtr>> inputs;
+  std::vector<std::vector<InputVal>> inputs;
   std::vector<ValuePtr> yT;
 
   std::ifstream file("../inputData.txt");
@@ -80,17 +43,17 @@ void testNN() {
     warn("无法打开文件: ", "../inputData.txt");
     return;
   }
-  size_t numInput = 99;
+  size_t numInput = 100;
   double x, y, category;
   std::string line;
   while (std::getline(file, line) && numInput) {
     std::istringstream iss(line);
     if (iss >> x >> y >> category) {
-      std::vector<ValuePtr> input(2);
-      input[0] = std::make_shared<Value>(x);
-      input[1] = std::make_shared<Value>(y);
+      std::vector<InputVal> input;
+      input.emplace_back(x);
+      input.emplace_back(y);
 
-      inputs.push_back(std::move(input));
+      inputs.push_back(input);
       yT.push_back(std::make_shared<Value>(category));
     } else {
       warn("格式错误");
@@ -100,11 +63,6 @@ void testNN() {
 
   bool drawOrNot = true;
 
-  std::vector<std::vector<ValuePtr>> yOut;
-  ValuePtr predictionLoss = std::make_shared<Value>();
-  ValuePtr regLoss;
-  ValuePtr totalLoss;
-
   double alpha = 0.001;  // 比0.1和0.01合适
   double learningRate = 1.0;
   int totalTime = 100;
@@ -112,62 +70,68 @@ void testNN() {
   while (time < totalTime) {
     std::unique_ptr<Timer> t = std::make_unique<Timer>("time cost per epoch");
     info("-------------------- epoch ", time, "--------------------------");
+    double lossSum = 0;
+    {
+      std::vector<std::vector<ValuePtr>> yOut;
 
-    computeOutput(mlp, inputs, yOut);
+      ValuePtr predictionLoss;
+      ValuePtr regLoss;
+      ValuePtr totalLoss;
 
-    predictionLoss = computePredictionLoss(yOut, yT);
-    info("prediction_Loss: ", predictionLoss->val);
+      std::vector<std::vector<InputVal>> batchInputs;
+      std::vector<ValuePtr> batchYT;
+      std::vector<std::vector<ValuePtr>> batchYOut;
+      std::vector<MLP> mlps;
 
-    regLoss = computeRegLoss(mlp);
-    info("reg_Loss:", regLoss->val);
+      for (size_t i = 0; i < 8; ++i) {
+        int randomNum = std::rand() % 100;  // 不设置种子，就会获得相同的序列
+        batchInputs.push_back(inputs[randomNum]);
+        batchYT.push_back(yT[randomNum]);
+        mlps.push_back(mlp);
+      }
 
-    totalLoss = predictionLoss + regLoss * alpha;
-    info("totalLoss val:", totalLoss->val);
+      computeOutputBatchInput(mlps, batchInputs, batchYOut);
 
-    // 在这段代码输出的图像中，如何找哪些是w和b？在update()之后，w和b梯度会置零。
-    // GVC_t* gvc = gvContext();
-    // std::string name1 = "before";
-    // drawGraph(loss, name1 ,gvc);
+      predictionLoss = computePredictionLoss(batchYOut, batchYT);
+      info("prediction_Loss: ", predictionLoss->val);
 
-    totalLoss->derivative = 1;
-    backward(totalLoss);
+      // GVC_t* gvc = gvContext();
+      // std::string name1 = "before";
+      // drawGraph(predictionLoss, name1, gvc);
 
-    // std::string name3 = "middle";
-    // drawGraph(loss, name3, gvc);
+      // regLoss = computeRegLoss(mlp);
+      // info("reg_Loss:", regLoss->val);
 
-    learningRate = 1 - 0.9 * time / totalTime;
-    updateParameters(mlp, learningRate);
+      // totalLoss = predictionLoss + regLoss * alpha;
+      totalLoss = predictionLoss;
+      info("totalLoss val:", totalLoss->val);
 
-    // std::string name2 = "after";
-    // drawGraph(loss, name2, gvc);
-    time = time + 1;
+      totalLoss->derivative = 1;
+      backward(totalLoss);
+
+      calculateGrad(mlps, mlp);
+
+      learningRate = 1 - 0.9 * time / totalTime;
+      updateParameters(mlp, learningRate);
+
+      time = time + 1;
+      Value::cache.clear();
+      info("Value num: ", Value::maxID);
+    }
   }
 
   auto start = std::chrono::high_resolution_clock::now();
+  // /*
   if (drawOrNot) {
     std::unique_ptr<Timer> td = std::make_unique<Timer>("time cost for draw");
-    std::vector<std::vector<ValuePtr>> inputsForDraw;
+    std::vector<std::vector<InputVal>> inputsForDraw;
     inputsForDraw.reserve(3600);
-    // std::vector<ValuePtr> input;
-    // input.reserve(2);
-
-    // for (int iStep = 0; iStep < 60; ++iStep) {
-    //   double i = (iStep - 30) * 0.1;
-    //   for (int jStep = 0; jStep < 60; ++jStep) {
-    //     double j = (jStep - 30) * 0.1;
-    //     input.clear();
-    //     input.emplace_back(std::make_shared<Value>(i));
-    //     input.emplace_back(std::make_shared<Value>(j));
-
-    //     inputsForDraw.push_back(std::move(input));
-    //   }
-    // }
 
     std::mutex mtx;
     auto generateChunk = [&inputsForDraw, &mtx](int iStart, int iEnd) {
-      std::vector<std::vector<ValuePtr>> localInputsForDraw;
+      std::vector<std::vector<InputVal>> localInputsForDraw;
       localInputsForDraw.reserve((iEnd - iStart) * 60);
-      std::vector<ValuePtr> input;
+      std::vector<InputVal> input;
       input.reserve(2);
 
       for (int iStep = iStart; iStep < iEnd; ++iStep) {
@@ -175,8 +139,8 @@ void testNN() {
         for (int jStep = 0; jStep < 60; ++jStep) {
           double j = (jStep - 30) * 0.1;
           input.clear();
-          input.emplace_back(std::make_shared<Value>(i));
-          input.emplace_back(std::make_shared<Value>(j));
+          input.emplace_back(i);
+          input.emplace_back(j);
 
           localInputsForDraw.push_back(std::move(input));
         }
@@ -190,8 +154,8 @@ void testNN() {
     t1.join();
 
     Timer* loop = new Timer("time cost in loop");
-    std::vector<std::vector<ValuePtr>> inputsForDraw1;
-    std::vector<std::vector<ValuePtr>> inputsForDraw2;
+    std::vector<std::vector<InputVal>> inputsForDraw1;
+    std::vector<std::vector<InputVal>> inputsForDraw2;
     inputsForDraw1.reserve(inputsForDraw.size() / 2);
     inputsForDraw2.reserve(inputsForDraw.size() / 2);
     inputsForDraw1.insert(inputsForDraw1.end(), inputsForDraw.begin(),
@@ -224,7 +188,7 @@ void testNN() {
 
     fileOut << std::fixed << std::setprecision(2);
     for (size_t i = 0; i < inputsForDraw.size(); ++i) {
-      fileOut << inputsForDraw[i][0]->val << " " << inputsForDraw[i][1]->val << " "
+      fileOut << inputsForDraw[i][0].val << " " << inputsForDraw[i][1].val << " "
               << (yForDraw[i][0]->val > 0 ? 1 : 0) << "\n";
     }
 
@@ -237,60 +201,8 @@ void testNN() {
     start = std::chrono::high_resolution_clock::now();
     yForDraw.clear();
   }
+  // */
   auto end = std::chrono::high_resolution_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
   std::cout << "exit loacl scope took " << duration.count() << "ms\n";
-}
-
-// 真好用
-int testGNUPlot() {
-  char cwd[PATH_MAX];
-  if (getcwd(cwd, sizeof(cwd)) != nullptr) {
-    std::cout << "Current working directory: " << cwd << std::endl;
-  } else {
-    std::cerr << "Error getting current working directory" << std::endl;
-  }
-
-  // double e = M_E;
-  // std::ofstream file("data.txt");
-  // for (double x = -10.0; x < 10.0; x += 0.1)
-  //     file << x << " " << (pow(e,(2*x))-1) / (pow(e,(2*x))+1) << " " << x <<
-  //     "\n";
-  // file.close();
-
-  system(
-      "gnuplot -e \"set palette defined (0 'red', 1 'blue', 2 'green'); set "
-      "xrange [-3:3]; set yrange [-3:3]; plot '../data.txt' with points pt 7 "
-      "ps 1.5 palette notitle; pause -1\"");
-  return 0;
-}
-
-void testAutoGrad() {
-  ValuePtr a = std::make_shared<Value>(5);
-  ValuePtr b = std::make_shared<Value>(2);
-  ValuePtr c = a + b;
-  ValuePtr d = std::make_shared<Value>(3);
-
-  ValuePtr e = c * d;
-  ValuePtr f = b * e;
-  //   ValuePtr g = f + 20;   // 这个+操作有问题,
-  //   debug和release模式都有【已经修复】
-
-  ValuePtr h = f + e;
-
-  h->derivative = 1;
-
-  GVC_t* gvc = gvContext();
-  drawGraph(h, "../autograd", gvc);
-  backward(h);
-  drawGraph(h, "../backward", gvc);
-}
-
-void testCache() {
-  {
-    ValuePtr a = std::make_shared<Value>(5);
-    ValuePtr b = std::make_shared<Value>(2);
-    ValuePtr c = a + b;
-    c = a + b;
-  }
 }

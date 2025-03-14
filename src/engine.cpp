@@ -13,6 +13,7 @@ std::string toString(Operation op) {
       {Operation::TANH, "TANH"},         {Operation::NEG, "NEG"},
       {Operation::INV, "INV"},           {Operation::EXP, "EXP"},
       {Operation::POW, "POW"},           {Operation::RELU, "RELU"},
+      {Operation::MULI, "MULI"},
   };
   auto it = opMap.find(op);
   return (it != opMap.end()) ? it->second : "UNKNOWN";
@@ -31,12 +32,10 @@ ValuePtr operator+(ValuePtr lhs, ValuePtr rhs) {
     // info("find a already exist Value");
     out = Value::cache[check];
     out->val = lhs->val + rhs->val;
-    out->derivative =
-        0;  // 在这里把所有梯度都设为0是不是一个好的时机？？？还是要专门写个函数把所有的Value的梯度都设置为0
+    out->derivative = 0;
   } else {
     out = std::make_shared<Value>(lhs->val + rhs->val);
     out->op = Operation::ADD;
-    out->derivative = 0;
     out->prev_.push_back(lhs);
     out->prev_.push_back(rhs);
 
@@ -62,7 +61,6 @@ ValuePtr operator*(ValuePtr lhs, ValuePtr rhs) {
     double b = rhs->val;
     out = std::make_shared<Value>(a * b);
     out->op = Operation::MULTIPLY;
-    out->derivative = 0;
     out->prev_.push_back(lhs);
     out->prev_.push_back(rhs);
 
@@ -121,12 +119,10 @@ ValuePtr operator*(ValuePtr lhs, InputVal iv) {
   if (Value::cache.find(check) != Value::cache.end()) {
     out = Value::cache[check];
     out->val = num;
-    out->op = Operation::MULI;
     out->derivative = 0;
     out->prev_[1]->val = iv.val;
   } else {
     out = std::make_shared<Value>(num);
-    out->derivative = 0;
     out->op = Operation::MULI;
     out->prev_.push_back(lhs);
     out->prev_.push_back(std::make_shared<Value>(iv.val));
@@ -211,6 +207,7 @@ ValuePtr inv(ValuePtr vp) {
 
 ValuePtr operator/(ValuePtr lhs, ValuePtr rhs) {
   ValuePtr inter = inv(rhs);
+  info("///////////////////////");
   // ValuePtr inter = pow(rhs,-1);
 
   return lhs * inter;
@@ -280,12 +277,13 @@ ValuePtr pow(ValuePtr lhs, double rhs) {
   return pow(lhs, rhsNum);
 }
 
+// 暂时先改成leakyrelu
 ValuePtr relu(ValuePtr vp) {
   // std::lock_guard<std::mutex> lock(Value::mtx);
 
   double num;
   if (vp->val < 0) {
-    num = 0;
+    num = 0.01 * vp->val;
   } else {
     num = vp->val;
   }
@@ -342,6 +340,8 @@ void Value::backward() {
     case Operation::RELU:
       if (this->val > 0) {
         this->prev_[0]->derivative += this->derivative;
+      } else {
+        this->prev_[0]->derivative += 0.01 * this->derivative;
       }
       break;
     case Operation::ADDI:
@@ -349,5 +349,8 @@ void Value::backward() {
       break;
     case Operation::MULI:
       this->prev_[0]->derivative += this->prev_[1]->val * this->derivative;
+      break;
+    default:
+      warn("无效输入---------");
   }
 }

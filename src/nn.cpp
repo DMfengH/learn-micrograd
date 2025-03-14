@@ -1,7 +1,7 @@
 #include "nn.h"
 
 std::mt19937 Neuron::gen(std::random_device{}());
-std::uniform_real_distribution<double> Neuron::dist(-1.0, 1.0);
+std::normal_distribution<double> Neuron::dist(0, 1.0);
 
 Neuron::Neuron(int indegree_, bool nonLin_) : indegree(indegree_), nonLin(nonLin_) {
   W.reserve(indegree);
@@ -48,11 +48,25 @@ ValuePtr Neuron::operator()(const std::vector<ValuePtr>& input) {
   return res;
 }
 
+ValuePtr Neuron::operator()(const std::vector<InputVal>& input) {
+  ValuePtr res = b;
+  for (int i = 0; i < indegree; i++) {
+    res = res + W[i] * input[i];  // 这种代码如何写两个两个相加，而不是都往res上累加
+  }
+
+  if (nonLin) {
+    // res = tanh(res);
+    res = relu(res);
+  }
+
+  return res;
+}
+
 Layer::Layer(int inDegree_, int outDegree_, bool nonLin)
     : inDegree(inDegree_), outDegree(outDegree_) {
-  double XavierInitRange = std::sqrt(6) / std::sqrt(inDegree + outDegree);
-  Neuron::dist.param(std::uniform_real_distribution<double>::param_type(-XavierInitRange,
-                                                                        XavierInitRange));
+  double HeInit = std::sqrt(2) / std::sqrt(inDegree);
+  info("W Distribute range: ", 0, HeInit);
+  Neuron::dist.param(std::normal_distribution<double>::param_type(0, HeInit));
   ns.reserve(outDegree);
   for (int i = 0; i < outDegree; i++) {
     ns.emplace_back(inDegree, nonLin);
@@ -74,6 +88,16 @@ std::vector<ValuePtr> Layer::parameters() {
 }
 
 std::vector<ValuePtr> Layer::operator()(const std::vector<ValuePtr>& input) {
+  std::vector<ValuePtr> out;
+  out.reserve(outDegree);
+  for (int i = 0; i < outDegree; i++) {
+    out.push_back(ns[i](input));
+  }
+
+  return out;
+}
+
+std::vector<ValuePtr> Layer::operator()(const std::vector<InputVal>& input) {
   std::vector<ValuePtr> out;
   out.reserve(outDegree);
   for (int i = 0; i < outDegree; i++) {
@@ -114,7 +138,7 @@ std::vector<ValuePtr> MLP::parameters() {
   return paras;
 }
 
-std::vector<ValuePtr> MLP::operator()(const std::vector<ValuePtr>& input) {
+std::vector<ValuePtr> MLP::operator()(const std::vector<InputVal>& input) {
   std::vector<ValuePtr> res;
   res = layers[0](input);
   for (size_t i = 1; i < numLayers; i++) {

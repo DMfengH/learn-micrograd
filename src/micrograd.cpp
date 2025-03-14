@@ -79,7 +79,7 @@ void topoSort(ValuePtr root, std::vector<ValuePtr>& topo) {
 // 这里需要topo排序才行
 void backward(ValuePtr root) {
   // Timer t("backward");
-  std::vector<ValuePtr> topo;
+  std::vector<ValuePtr> topo;  // 如果model不变化，这个topo也是不变的，不需要再次topoSort()
   topoSort(root, topo);
 
   for (auto it = topo.rbegin(); it != topo.rend(); it++) {
@@ -129,14 +129,43 @@ void updateParameters(MLP& mlp, double learningRate) {
   }
 }
 
-void computeOutput(MLP& mlp, const std::vector<std::vector<ValuePtr>>& inputs,
+// 这里yOut直接就赋值成mlp的输出不行么？
+void computeOutput(MLP& mlp, const std::vector<std::vector<InputVal>>& inputs,
                    std::vector<std::vector<ValuePtr>>& yOut) {
-  yOut.clear();
-  yOut.reserve(inputs.size());
-
-  for (int i = 0; i < inputs.size(); i++) {
-    yOut.push_back(mlp(inputs[i]));
+  std::vector<ValuePtr> tmp;
+  if (yOut.empty()) {
+    std::vector<ValuePtr> tmpY;
+    for (int i = 0; i < inputs.size(); i++) {
+      tmp = mlp(inputs[i]);
+      for (auto x : tmp) {
+        // 这里全都clone，最开始是为了多个输入有多个输出，否则都是同一个输出，但是现在不用了
+        tmpY.push_back(x->clone());
+      }
+      yOut.push_back(tmpY);
+      tmpY.clear();
+    }
+  } else {
+    for (int i = 0; i < inputs.size(); i++) {
+      tmp = mlp(inputs[i]);
+      for (size_t j = 0; j < tmp.size(); ++j) {
+        yOut[i][j]->val = tmp[j]->val;
+        yOut[i][j]->derivative = 0;
+      }
+    }
   }
+}
+void computeOutputBatchInput(std::vector<MLP>& mlps,
+                             const std::vector<std::vector<InputVal>>& inputs,
+                             std::vector<std::vector<ValuePtr>>& yOut) {
+  yOut.clear();
+  for (int i = 0; i < inputs.size(); i++) {
+    yOut.push_back(mlps[i](inputs[i]));
+  }
+}
+
+void computeOutputSingleInput(MLP& mlp, const std::vector<InputVal>& inputs,
+                              std::vector<ValuePtr>& yOut) {
+  yOut = mlp(inputs);
 }
 
 // losses = [(1 + -yi*scorei).relu() for yi, scorei in zip(yb, scores)]
@@ -155,8 +184,14 @@ ValuePtr computePredictionLoss(const std::vector<std::vector<ValuePtr>>& yOut,
   }
 
   // predictionLoss = pow(predictionLoss, 0.5);
-  predictionLoss = predictionLoss * pow(yT.size(), -1);
+  // predictionLoss = predictionLoss * pow(yT.size(), -1);
 
+  return predictionLoss;
+}
+
+ValuePtr computePredictionLossSingleInput(const std::vector<ValuePtr>& yOut, const ValuePtr yT) {
+  // 这里如果创建新的Value，所以后续计算都会产生新的Value，而不是在旧的上计算
+  ValuePtr predictionLoss = relu((-(yT * yOut[0]) + 1));
   return predictionLoss;
 }
 
@@ -181,3 +216,23 @@ ValuePtr computeRegLoss(MLP& mlp) {
 }
 
 ValuePtr computeLoss() { ValuePtr totalLoss = std::make_shared<Value>(); }
+
+void calculateGrad(std::vector<MLP>& mlps, MLP& mlp) {
+  std::vector<ValuePtr> Paras = mlp.parameters();
+  std::vector<std::vector<ValuePtr>> allParas;
+
+  // 这里出问题了，没有写引用，都是拷贝，拷贝构造会重新构造底层的W和b,置零。
+  for (auto& m : mlps) {
+    allParas.push_back(m.parameters());
+  }
+  int batchSize = allParas.size();
+  for (size_t i = 0; i < Paras.size(); ++i) {
+    double deri = 0;
+    for (size_t j = 0; j < batchSize; ++j) {
+      deri += allParas[j][i]->derivative;
+    }
+    Paras[i]->derivative = deri / batchSize;
+
+    // info("derivate val:", Paras[i]->derivative);
+  }
+}

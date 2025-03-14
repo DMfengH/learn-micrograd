@@ -18,12 +18,20 @@ void backward(ValuePtr root);
 
 void updateParameters(MLP& mlp, double learningRate = 0.01);
 
-void computeOutput(MLP& mlp, const std::vector<std::vector<ValuePtr>>& inputs,
+void computeOutput(MLP& mlp, const std::vector<std::vector<InputVal>>& inputs,
                    std::vector<std::vector<ValuePtr>>& yOut);
+void computeOutputBatchInput(std::vector<MLP>& mlps,
+                             const std::vector<std::vector<InputVal>>& inputs,
+                             std::vector<std::vector<ValuePtr>>& yOut);
+void computeOutputSingleInput(MLP& mlp, const std::vector<InputVal>& inputs,
+                              std::vector<ValuePtr>& yOut);
+
 // 这里的参数类型不太对，暂时先这样
 ValuePtr computeLoss();
 
 ValuePtr computePredictionLoss(const std::vector<std::vector<ValuePtr>>& yOut,
                                const std::vector<ValuePtr>& yT);
-
+ValuePtr computePredictionLossSingleInput(const std::vector<ValuePtr>& yOut, const ValuePtr yT);
 ValuePtr computeRegLoss(MLP& mlp);
+
+void calculateGrad(std::vector<MLP>& mlps, MLP& mlp);

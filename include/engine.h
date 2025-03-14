@@ -72,7 +72,7 @@ public:
       : id(other.id),
         val(other.val),
         derivative(other.derivative),
-        op(std::move(other.op)),
+        op(other.op),
         prev_(std::move(other.prev_)) {
     other.id = 0;
     other.val = 0;
@@ -88,7 +88,7 @@ public:
       id = other.id;
       val = other.val;
       derivative = other.derivative;
-      op = std::move(other.op);
+      op = other.op;
       prev_ = std::move(other.prev_);
       other.id = 0;
       other.val = 0;
@@ -102,7 +102,7 @@ public:
   }
 
   ~Value() {
-    // --maxID;
+    --maxID;
     // std::cout << "destory a Value: " << id << std::endl;
   }
 
