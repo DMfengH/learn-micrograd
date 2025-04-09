@@ -122,7 +122,7 @@ void updateParameters(MLP& mlp, double learningRate) {
   for (size_t i = 0; i < mlp.numLayers - 1; i++) {
     numParas += (mlp.outDegrees[i] + 1) * mlp.outDegrees[i + 1];
   }
-  info("num of parameters in mlp:", numParas);
+
   for (size_t i = 0; i < numParas; i++) {
     parameters[i]->val += -1 * learningRate * parameters[i]->derivative;
     parameters[i]->derivative = 0;
@@ -169,6 +169,7 @@ void computeOutputSingleInput(MLP& mlp, const std::vector<InputVal>& inputs,
 }
 
 // losses = [(1 + -yi*scorei).relu() for yi, scorei in zip(yb, scores)]
+// 这里调用relu是为了简单实现max(0,x)函数，而不是调用激活函数，所以这里relu不能改成leakyRelu。
 ValuePtr computePredictionLoss(const std::vector<std::vector<ValuePtr>>& yOut,
                                const std::vector<ValuePtr>& yT) {
   // 这里如果创建新的Value，所以后续计算都会产生新的Value，而不是在旧的上计算
@@ -207,6 +208,7 @@ ValuePtr computeRegLoss(MLP& mlp) {
 
   // 为什么不创建一个空白的regLoss然后在循环里从i=0开始累加？
   // 因为这样可以实现Value的重复使用，不会因为创建一个新的Value，导致后面所有的Value都需要重新创建
+  // 现在没用了
   ValuePtr regLoss = pow(parameters[0], 2);
   for (size_t i = 1; i < numParas; i++) {
     regLoss = regLoss + pow(parameters[i], 2);
@@ -231,7 +233,8 @@ void calculateGrad(std::vector<MLP>& mlps, MLP& mlp) {
     for (size_t j = 0; j < batchSize; ++j) {
       deri += allParas[j][i]->derivative;
     }
-    Paras[i]->derivative = deri / batchSize;
+    // 为什么是+=？ 因为mlp在computeRegLoss中参与了计算，反传的时候有derivative。
+    Paras[i]->derivative += deri / batchSize;
 
     // info("derivate val:", Paras[i]->derivative);
   }

@@ -283,7 +283,8 @@ ValuePtr relu(ValuePtr vp) {
 
   double num;
   if (vp->val < 0) {
-    num = 0.01 * vp->val;
+    // num = 0.01 * vp->val;
+    num = 0.0;
   } else {
     num = vp->val;
   }
@@ -291,7 +292,7 @@ ValuePtr relu(ValuePtr vp) {
   ValuePtr out;
   auto check = std::make_pair(vp, Value::placeHolder);
   if (Value::cache.find(check) != Value::cache.end()) {
-    // info("find a already exist Value");
+    // info("find a already exist  relu Value");
     out = Value::cache[check];
     out->val = num;
     out->derivative = 0;
@@ -341,7 +342,8 @@ void Value::backward() {
       if (this->val > 0) {
         this->prev_[0]->derivative += this->derivative;
       } else {
-        this->prev_[0]->derivative += 0.01 * this->derivative;
+        // this->prev_[0]->derivative += 0.01 * this->derivative;
+        this->prev_[0]->derivative += 0.0;
       }
       break;
     case Operation::ADDI:

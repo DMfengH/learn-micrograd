@@ -144,3 +144,83 @@ void drawGraph(ValuePtr result, std::string name, GVC_t* gvc) {
   gvLayout(gvc, graph, "dot");
   gvRenderFilename(gvc, graph, "png", (name + ".png").c_str());
 }
+
+void drawDivideGraph(MLP& mlp) {
+  std::unique_ptr<Timer> td = std::make_unique<Timer>("time cost for draw");
+  std::vector<std::vector<InputVal>> inputsForDraw;
+  inputsForDraw.reserve(3600);
+
+  std::mutex mtx;
+  auto generateChunk = [&inputsForDraw, &mtx](int iStart, int iEnd) {
+    std::vector<std::vector<InputVal>> localInputsForDraw;
+    localInputsForDraw.reserve((iEnd - iStart) * 60);
+    std::vector<InputVal> input;
+    input.reserve(2);
+
+    for (int iStep = iStart; iStep < iEnd; ++iStep) {
+      double i = (iStep - 30) * 0.1;
+      for (int jStep = 0; jStep < 60; ++jStep) {
+        double j = (jStep - 30) * 0.1;
+        input.clear();
+        input.emplace_back(i);
+        input.emplace_back(j);
+
+        localInputsForDraw.push_back(std::move(input));
+      }
+    }
+    std::lock_guard<std::mutex> lock(mtx);
+    inputsForDraw.insert(inputsForDraw.end(), localInputsForDraw.begin(), localInputsForDraw.end());
+  };
+  std::thread t1(generateChunk, 0, 30);
+  generateChunk(30, 60);
+  t1.join();
+
+  std::vector<std::vector<InputVal>> inputsForDraw1;
+  std::vector<std::vector<InputVal>> inputsForDraw2;
+  inputsForDraw1.reserve(inputsForDraw.size() / 2);
+  inputsForDraw2.reserve(inputsForDraw.size() / 2);
+  inputsForDraw1.insert(inputsForDraw1.end(), inputsForDraw.begin(),
+                        inputsForDraw.begin() + inputsForDraw.size() / 2);
+  inputsForDraw2.insert(inputsForDraw2.end(), inputsForDraw.begin() + inputsForDraw.size() / 2,
+                        inputsForDraw.end());
+  std::vector<std::vector<ValuePtr>> yForDraw1;
+  std::vector<std::vector<ValuePtr>> yForDraw2;
+
+  std::thread t3(computeOutput, std::ref(mlp), std::ref(inputsForDraw1), std::ref(yForDraw1));
+
+  std::thread t4(computeOutput, std::ref(mlp), std::ref(inputsForDraw2), std::ref(yForDraw2));
+
+  t3.join();
+  t4.join();
+
+  std::vector<std::vector<ValuePtr>> yForDraw;
+  yForDraw.reserve(inputsForDraw.size());
+  yForDraw.insert(yForDraw.end(), yForDraw1.begin(), yForDraw1.end());
+  yForDraw.insert(yForDraw.end(), yForDraw2.begin(), yForDraw2.end());
+
+  inputsForDraw1.clear();
+  inputsForDraw2.clear();
+  yForDraw1.clear();
+  yForDraw2.clear();
+
+  std::ofstream fileOut("../outPutForDraw.txt");
+
+  fileOut << std::fixed << std::setprecision(2);
+  for (size_t i = 0; i < inputsForDraw.size(); ++i) {
+    fileOut << inputsForDraw[i][0].val << " " << inputsForDraw[i][1].val << " "
+            << (yForDraw[i][0]->val > 0 ? 1 : 0) << "\n";
+  }
+
+  std::ifstream file("../inputData.txt");
+  if (!file) {
+    warn("无法打开文件: ", "../inputData.txt");
+    return;
+  }
+  file.clear();
+  file.seekg(0, std::ios::beg);
+  fileOut << file.rdbuf();
+
+  inputsForDraw.clear();
+
+  yForDraw.clear();
+}

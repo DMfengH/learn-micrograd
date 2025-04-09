@@ -1,12 +1,7 @@
 #include "test_ground.h"
 
 int main() {
-  // testAutoGrad();
-
-  testNN();
-  // testGNUPlot();
-  // testReadTxt();
-  // testCache();
+  // testNN();
 
   info(
       "---------------------------  The program is end at there  "
