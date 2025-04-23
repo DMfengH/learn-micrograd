@@ -23,11 +23,9 @@ public:
 
     W.reserve(indegree);
     for (size_t i = 0; i < indegree; i++) {
-      W.emplace_back(std::make_shared<Value>(other.W[i]->val));
+      W.emplace_back(std::make_shared<Value>(other.W[i]->val, other.W[i]->modelPara));
     }
-
-    b = std::make_shared<Value>(other.b->val);
-
+    b = std::make_shared<Value>(other.b->val, other.b->modelPara);
     nonLin = other.nonLin;
   }
 
@@ -39,10 +37,11 @@ public:
   }
   void print();
 
-  std::vector<ValuePtr> parameters();
+  std::vector<ValuePtr> parametersAll();
+  std::vector<ValuePtr> parametersW();
 
-  ValuePtr operator()(const std::vector<ValuePtr>& input);
-  ValuePtr operator()(const std::vector<InputVal>& input);
+  ValuePtr operator()(const std::vector<ValuePtr>& input) const;
+  ValuePtr operator()(const std::vector<InputVal>& input) const;
 
 public:
   static std::mt19937 gen;  // 选择 Mersenne Twister 作为随机引擎
@@ -60,18 +59,26 @@ public:
     // info("construct a layer");
   }
   Layer(int inDegree_, int outDegree_, bool nonLin = true);
-  Layer(const Layer& other) : inDegree(other.inDegree), outDegree(other.outDegree), ns(other.ns) {}
+  Layer(const Layer& other)
+      : inDegree(other.inDegree),
+        outDegree(other.outDegree),
+        ns(other.ns),
+        numParametersW(other.numParametersW),
+        numParametersB(other.numParametersB) {}
   ~Layer() { ns.clear(); }
   // 这里如果使用vector，应该会简单很多
-  std::vector<ValuePtr> parameters();
+  std::vector<ValuePtr> parametersAll();
+  std::vector<ValuePtr> parametersW();
 
-  std::vector<ValuePtr> operator()(const std::vector<ValuePtr>& input);
-  std::vector<ValuePtr> operator()(const std::vector<InputVal>& input);
+  std::vector<ValuePtr> operator()(const std::vector<ValuePtr>& input) const;
+  std::vector<ValuePtr> operator()(const std::vector<InputVal>& input) const;
 
 public:
   std::vector<Neuron> ns;
   size_t inDegree = 0;
   size_t outDegree = 0;
+  size_t numParametersW = 0;
+  size_t numParametersB = 0;
 };
 
 class MLP {
@@ -81,17 +88,22 @@ public:
       : inDegree(other.inDegree),
         numLayers(other.numLayers),
         outDegrees(other.outDegrees),
-        layers(other.layers) {}
+        layers(other.layers),
+        numParametersW(other.numParametersW),
+        numParametersB(other.numParametersB) {}
 
   ~MLP() { layers.clear(); }
 
-  std::vector<ValuePtr> parameters();
+  std::vector<ValuePtr> parametersAll();
+  std::vector<ValuePtr> parametersW();
 
-  std::vector<ValuePtr> operator()(const std::vector<InputVal>& input);
+  std::vector<ValuePtr> operator()(const std::vector<InputVal>& input) const;
 
 public:
   size_t inDegree = 0;
   size_t numLayers = 0;
   int* outDegrees = nullptr;
   std::vector<Layer> layers;
+  size_t numParametersW = 0;
+  size_t numParametersB = 0;
 };

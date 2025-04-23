@@ -58,7 +58,7 @@ void testNN() {
   // Logger::setLogLevel(Logger::logLevel::WarnLevel);
   int outs[] = {16, 16, 1};  // 最后一层的维度，要和true_y的维度匹配。{16, 16, 1}
   MLP mlp(2, std::size(outs), outs);
-  info("num of parameters in mlp:", mlp.parameters().size());
+  info("num of parameters in mlp:", mlp.parametersAll().size());
 
   std::vector<std::vector<InputVal>> inputs;
   std::vector<ValuePtr> yT;
@@ -72,8 +72,8 @@ void testNN() {
   std::ofstream lossForDrawF("../lossData.txt");
 
   double alpha = 0.001;  // 比0.1和0.01合适
-  double learningRate = 1.0;
-  int totalTime = 200;
+  double learningRate = 1;
+  int totalTime = 1000;
   int time = 0;
   while (time < totalTime) {
     std::unique_ptr<Timer> t = std::make_unique<Timer>("time cost per epoch");
@@ -85,26 +85,22 @@ void testNN() {
     std::vector<std::vector<InputVal>> batchInputs;
     std::vector<ValuePtr> batchYT;
     std::vector<std::vector<ValuePtr>> batchYOut;
-    std::vector<MLP> mlps;
 
     std::shuffle(numbers.begin(), numbers.end(), batchGen);
-    for (size_t i = 0; i < 8; ++i) {
+    for (size_t i = 0; i < 16; ++i) {
       int randomNum = numbers[i];
       batchInputs.push_back(inputs[randomNum]);
       batchYT.push_back(yT[randomNum]);
-      mlps.push_back(mlp);
     }
 
-    computeOutputBatchInput(mlps, batchInputs, batchYOut);
+    computeOutputBatchInput(mlp, batchInputs, batchYOut);
 
     predictionLoss = computePredictionLoss(batchYOut, batchYT);
+    predictionLoss->modelPara = ModelPara::output;
     info("prediction_Loss: ", predictionLoss->val);
 
-    // GVC_t* gvc = gvContext();
-    // std::string name1 = "before";
-    // drawGraph(predictionLoss, name1, gvc);
-
     regLoss = computeRegLoss(mlp);
+    regLoss->modelPara = ModelPara::output;
     info("reg_Loss:", regLoss->val);
 
     totalLoss = predictionLoss + regLoss * alpha;
@@ -115,12 +111,22 @@ void testNN() {
     totalLoss->derivative = 1;
     backward(totalLoss);
 
-    calculateGrad(mlps, mlp);
+    // if (time == 0) {
+    //   GVC_t* gvc = gvContext();
+    //   std::string name = "beforeUpdate";
+    //   drawGraph(totalLoss, name, gvc);
+    // }
 
-    learningRate = 1 - 0.9 * time / totalTime;
-    updateParameters(mlp, learningRate);
+    double decreaseLearningRate = learningRate - 0.9 * learningRate * time / totalTime;
+    updateParameters(mlp, decreaseLearningRate);
 
+    // if (time == 0) {
+    //   GVC_t* gvc = gvContext();
+    //   std::string name = "afterUpdate";
+    //   drawGraph(totalLoss, name, gvc);
+    // }
     info("num of Value: ", Value::maxID);
+    info("num of ModelParas: ", mlp.numParametersW + mlp.numParametersB);
 
     time++;
     Value::cache.clear();

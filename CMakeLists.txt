@@ -21,6 +21,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
 # set(CMAKE_CACHEFILE_DIR "/dev/null")
 # BINARY是当前构建目录，source是cmakelist所在目录， 这两个是只读变量，不能在这里修改的
 # set(CMAKE_BINARY_DIR "${CMAKE_SOURCE_DIR}/build")
+# LIBRARY 是动态库，ARCHIVE是静态库
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/../Makemore/tools/micrograd)
 
 # find_package(GTest REQUIRED)
 # find_package(TCL REQUIRED)
@@ -47,9 +49,12 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include")
 # include_directories(${Eigen3_INCLUDE_DIRS})
 include_directories(${GRAPHVIZ_INCLUDE_DIRS})
 
-file(GLOB SOURCE "src/*.cpp")
-add_executable(micrograd ${SOURCE})
+file(GLOB SOURCE_MAIN "src/main.cpp")
+file(GLOB SOURCE_OTHER "src/engine.cpp" "src/micrograd.cpp" "src/nn.cpp" "src/utils.cpp" "src/visualize_tool.cpp")
+
+add_executable(micrograd ${SOURCE_MAIN} ${SOURCE_OTHER})
 target_link_libraries(micrograd ${GRAPHVIZ_LIBRARIES} pthread)
 
-
+add_library(microgradlib_shared SHARED ${SOURCE_OTHER})
+set_target_properties(microgradlib_shared PROPERTIES OUTPUT_NAME "microgradlib")
 message("-------------------------end-----------------")

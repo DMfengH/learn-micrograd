@@ -23,7 +23,7 @@ set title "loss"
 set xlabel "Iteration"
 set ylabel "Loss value"
 set xrange [0:200]
-set yrange [-2:20]
+set yrange [0:2]
 plot './lossData.txt' using 1:2 with linespoints pt 7 ps 0.4 notitle
 
 unset multiplot

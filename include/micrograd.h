@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <set>
+#include <stack>
 #include <unordered_set>
 #include <vector>
 
@@ -12,7 +13,7 @@
 #include "nn.h"
 #include "utils.h"
 
-void topoSort(ValuePtr root, std::vector<ValuePtr>& topo);
+void topoSort(ValuePtr root, std::vector<Value*>& topo);
 
 void backward(ValuePtr root);
 
@@ -20,10 +21,9 @@ void updateParameters(MLP& mlp, double learningRate = 0.01);
 
 void computeOutput(MLP& mlp, const std::vector<std::vector<InputVal>>& inputs,
                    std::vector<std::vector<ValuePtr>>& yOut);
-void computeOutputBatchInput(std::vector<MLP>& mlps,
-                             const std::vector<std::vector<InputVal>>& inputs,
+void computeOutputBatchInput(const MLP& mlp, const std::vector<std::vector<InputVal>>& inputs,
                              std::vector<std::vector<ValuePtr>>& yOut);
-void computeOutputSingleInput(MLP& mlp, const std::vector<InputVal>& inputs,
+void computeOutputSingleInput(const MLP& mlp, const std::vector<InputVal>& inputs,
                               std::vector<ValuePtr>& yOut);
 
 // 这里的参数类型不太对，暂时先这样

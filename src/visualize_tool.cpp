@@ -17,6 +17,23 @@ Agnode_t* drawDataNode(ValuePtr nodePtr, Agraph_t* g) {
   Agnode_t* node = agnode(g, name, TRUE);
   agsafeset(node, "shape", "box", "");
   agsafeset(node, "label", label, "");
+  if (nodePtr->modelPara == ModelPara::ParaW) {
+    agsafeset(node, "fillcolor", "lightyellow", "");
+    agsafeset(node, "style", "filled", "");
+    agsafeset(node, "fontcolor", "red", "");
+    agsafeset(node, "color", "red", "");
+  } else if (nodePtr->modelPara == ModelPara::Parab) {
+    agsafeset(node, "fillcolor", "lightyellow", "");
+    agsafeset(node, "fontcolor", "red", "");
+
+  } else if (nodePtr->modelPara == ModelPara::output) {
+    agsafeset(node, "style", "filled", "");
+    agsafeset(node, "color", "red", "");
+  } else if (nodePtr->modelPara == ModelPara::input) {
+    agsafeset(node, "style", "filled", "");
+    agsafeset(node, "color", "green", "");
+  }
+
   return node;
 }
 

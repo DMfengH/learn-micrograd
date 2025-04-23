@@ -1,7 +1,8 @@
 #pragma once
 #include <chrono>
+#include <iomanip>
 #include <iostream>
-
+#include <vector>
 //  这个类可能作为一个命名空间更合适。实例化一个对象很多余
 
 namespace Logger {
@@ -25,11 +26,25 @@ void info(Args... args) {
   log(InfoLevel, "INFO", args...);
 }
 
+template <typename T>
+std::ostream& operator<<(std::ostream& os, std::vector<T>& vec) {
+  os << std::fixed << std::setprecision(4);
+  os << "\n[";
+  for (size_t i = 0; i < vec.size(); ++i) {
+    os << vec[i];
+    if (i < vec.size() - 1) {
+      os << ", ";
+    }
+  }
+  os << "]";
+  return os;
+}
+
 template <typename... Args>
-void log(logLevel loglevel, const char* loglevelName, Args... args) {
+void log(logLevel loglevel, const char* loglevelName, Args&&... args) {
   if (getLogLevel() >= loglevel) {
     std::cout << "[ " << loglevelName << " ] ";
-    ((std::cout << args << " "), ...);
+    ((std::cout << std::forward<Args>(args) << " "), ...);
     std::cout << std::endl;
   }
 }
@@ -39,9 +54,7 @@ using namespace std::literals::chrono_literals;
 class Timer {
 public:
   Timer() : m_name("NONAME") { start = std::chrono::high_resolution_clock::now(); }
-  Timer(const char* name) : m_name(name) {
-    start = std::chrono::high_resolution_clock::now();
-  }
+  Timer(const char* name) : m_name(name) { start = std::chrono::high_resolution_clock::now(); }
 
   ~Timer() {
     auto end = std::chrono::high_resolution_clock::now();
